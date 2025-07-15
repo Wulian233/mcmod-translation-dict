@@ -1,6 +1,6 @@
 {
     "name": "mcmod-translation-dict-api",
-    "version": "1.6.0",
+    "version": "1.7.0",
     "private": true,
     "scripts": {
         "deploy": "wrangler deploy",
@@ -8,9 +8,9 @@
         "upgrade-deps": "taze patch -I"
     },
     "devDependencies": {
-        "@cloudflare/vitest-pool-workers": "^0.8.24",
-        "taze": "^19.0.4",
-        "vitest": "^3.1.2",
-        "wrangler": "^4.14.1"
+        "@cloudflare/vitest-pool-workers": "^0.8.53",
+        "taze": "^19.1.0",
+        "vitest": "^3.2.4",
+        "wrangler": "^4.24.3"
     }
 }

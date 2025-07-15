@@ -2,7 +2,7 @@
     "$schema": "node_modules/wrangler/config-schema.json",
     "name": "d1-tutorial",
     "main": "src/index.js",
-    "compatibility_date": "2025-04-02",
+    "compatibility_date": "2025-05-05",
     "observability": {
         "enabled": true
     },

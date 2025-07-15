@@ -1,114 +1,138 @@
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const path = url.pathname;
     const queryParams = url.searchParams;
 
+    // 为CORS提供标准响应头
     const headers = {
       "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+      "Access-Control-Allow-Methods": "GET, OPTIONS",
       "Access-Control-Allow-Headers": "Content-Type",
     };
 
-    const cacheTtl = 60 * 60 * 24 * 6; // Cache for 6 days
+    if (request.method === "OPTIONS") {
+      return new Response(null, { headers });
+    }
+
+    const cacheTtl = 60 * 60 * 24 * 6; // 缓存6天
     const cache = caches.default;
 
     if (path === "/search") {
       const query = queryParams.get("q");
       const page = parseInt(queryParams.get("page")) || 1;
-      const mode = queryParams.get("mode") || "en2zh"; // Default to English-to-Chinese
+      const mode = queryParams.get("mode") || "en2zh"; // 默认为英译中
       const offset = (page - 1) * 50;
 
-      if (!query) {
+      if (!query || query.trim() === "") {
         return new Response(JSON.stringify({ error: "查询参数不能为空" }), {
           status: 400,
           headers: { ...headers, "Content-Type": "application/json" },
         });
       }
+      
+      const searchTerm = query.trim().toLowerCase();
+      const likePattern = `${searchTerm}%`;
+      const searchColumn = mode === 'en2zh' ? 'origin_name' : 'trans_name';
 
-      const rawWords = query.trim().toLowerCase().split(/\s+/);
-      const likePatterns = rawWords.map((w) => `${w}%`);
-
-      const normalizedUrl = new URL(request.url);
-      normalizedUrl.searchParams.set("q", query.trim().toLowerCase());
-      const cacheKey = new Request(normalizedUrl.toString(), { method: "GET" });
-
-      const cached = await cache.match(cacheKey);
-      if (cached) return cached;
+      // 使用完整的请求URL作为缓存键，确保分页结果被正确缓存
+      const cacheKey = new Request(request.url, request);
+      const cachedResponse = await cache.match(cacheKey);
+      if (cachedResponse) {
+        return cachedResponse;
+      }
 
       try {
-        const sqlLike = likePatterns
-          .map(() =>
-            mode === "en2zh"
-              ? "LOWER(origin_name) LIKE ?"
-              : "LOWER(trans_name) LIKE ?"
-          )
-          .join(" OR ");
-
+        const aliasedSearchColumnLower = `LOWER(d.${searchColumn})`;
+        const searchColumnLower = `LOWER(${searchColumn})`;
+        
         const resultsQuery = `
-          SELECT trans_name, origin_name, modid, version, key, curseforge, COUNT(*) AS frequency,
-            CASE
-              WHEN ${
-                mode === "en2zh" ? "LOWER(origin_name)" : "LOWER(trans_name)"
-              } = ? THEN 3
-              WHEN ${sqlLike} THEN 2
-              ELSE 1
-            END AS match_weight
-          FROM dict
-          WHERE ${sqlLike}
-          GROUP BY trans_name, origin_name, modid, version, key, curseforge
-          ORDER BY match_weight DESC, frequency DESC
-          LIMIT 50 OFFSET ?
+          WITH Frequencies AS (
+            SELECT
+              origin_name,
+              trans_name,
+              COUNT(*) AS frequency
+            FROM dict
+            GROUP BY origin_name, trans_name
+          ),
+          RankedMatches AS (
+            SELECT
+              d.trans_name,
+              d.origin_name,
+              d.modid,
+              d.version,
+              d.key,
+              d.curseforge,
+              f.frequency,
+              CASE
+                WHEN ${aliasedSearchColumnLower} = ? THEN 3
+                ELSE 2
+              END AS match_weight,
+              ROW_NUMBER() OVER(PARTITION BY d.origin_name, d.trans_name ORDER BY d.version DESC) as rn
+            FROM dict d
+            JOIN Frequencies f ON d.origin_name = f.origin_name AND d.trans_name = f.trans_name
+            WHERE ${aliasedSearchColumnLower} LIKE ?
+          )
+          SELECT *
+          FROM RankedMatches
+          WHERE rn = 1
+          ORDER BY match_weight DESC, frequency DESC, origin_name
+          LIMIT 50 OFFSET ?;
         `;
 
+        // 统计唯一的翻译对数量
         const countQuery = `
-          SELECT COUNT(*) AS total
-          FROM dict
-          WHERE ${sqlLike}
+          SELECT COUNT(*) as total FROM (
+            SELECT DISTINCT origin_name, trans_name
+            FROM dict
+            WHERE ${searchColumnLower} LIKE ?
+          );
         `;
 
         const resultsPromise = env.DB.prepare(resultsQuery)
-          .bind(
-            query.trim().toLowerCase(),
-            ...likePatterns,
-            ...likePatterns,
-            offset
-          )
+          .bind(searchTerm, likePattern, offset)
           .all();
 
         const countPromise = env.DB.prepare(countQuery)
-          .bind(...likePatterns)
+          .bind(likePattern)
           .first();
 
-        const [results, countResult] = await Promise.all([
+        const [resultsData, countResult] = await Promise.all([
           resultsPromise,
           countPromise,
         ]);
 
-        const response = new Response(
-          JSON.stringify({
-            query,
-            results,
-            total: countResult.total,
-            mode,
-          }),
-          {
-            headers: { ...headers, "Content-Type": "application/json" },
-          }
-        );
+        const total = countResult ? countResult.total : 0;
+        const results = resultsData.results || [];
 
-        await cache.put(cacheKey, response.clone(), {
-          expirationTtl: cacheTtl,
+        const responseData = {
+          query,
+          results,
+          total,
+          page,
+          mode,
+        };
+
+        const response = new Response(JSON.stringify(responseData), {
+          headers: { ...headers, "Content-Type": "application/json" },
         });
+
+        // 将缓存操作放入后台执行，不阻塞响应返回
+        ctx.waitUntil(cache.put(cacheKey, response.clone(), {
+          expirationTtl: cacheTtl,
+        }));
+
         return response;
+
       } catch (err) {
-        return new Response(JSON.stringify({ error: err.message }), {
+        console.error("Database query failed:", err);
+        return new Response(JSON.stringify({ error: "数据库查询失败", details: err.message }), {
           status: 500,
           headers: { ...headers, "Content-Type": "application/json" },
         });
       }
     }
 
-    return new Response("Not Found", { status: 404 });
+    return new Response("Not Found", { status: 404, headers });
   },
 };

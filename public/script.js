@@ -19,7 +19,12 @@ document.addEventListener("DOMContentLoaded", () => {
         if (resetPage) currentPage = 1;
 
         const query = searchInput.value.trim();
-        if (!query) return updateResultsUI("请输入有效的搜索词");
+        if (!query) {
+            updateResultsUI("请输入有效的搜索词");
+            return;
+        }
+
+        updateResultsUI("正在搜索中...");
 
         const mode = searchMode.value;
         fetch(`https://api.vmct-cn.top/search?q=${encodeURIComponent(query)}&page=${currentPage}&mode=${mode}`)
@@ -28,18 +33,17 @@ document.addEventListener("DOMContentLoaded", () => {
                 return response.json();
             })
             .then((data) => {
-                if (!data?.results?.results?.length) {
+                if (!data?.results?.length) {
                     updateResultsUI("未找到结果");
                     return;
                 }
 
-                const mergedResults = mergeResults(data.results.results);
-                displayResults(mergedResults, query, mode);
+                displayResults(data.results, query, mode);
                 setupPagination(data.total, query, mode);
             })
             .catch((error) => {
                 console.error("查询失败:", error);
-                alert("查询失败，请检查控制台日志。");
+                updateResultsUI("查询失败，请检查网络或联系作者（Github Issue）。");
             });
     }
 
@@ -48,49 +52,23 @@ document.addEventListener("DOMContentLoaded", () => {
         pagination.innerHTML = "";
     }
 
-    function mergeResults(results) {
-        const merged = new Map();
-
-        results.forEach((item) => {
-            const key = `${item.TRANS_NAME}|${item.ORIGIN_NAME}`;
-            if (!merged.has(key)) {
-                merged.set(key, {
-                    TRANS_NAME: item.TRANS_NAME,
-                    ORIGIN_NAME: item.ORIGIN_NAME,
-                    MODID: item.MODID,
-                    VERSIONS: new Set(),
-                    KEYS: new Set(),
-                    CURSEFORGE: item.CURSEFORGE || "",
-                    frequency: 0,
-                });
-            }
-
-            const entry = merged.get(key);
-            entry.VERSIONS.add(item.VERSION);
-            entry.KEYS.add(item.KEY);
-            entry.frequency += item.frequency;
-        });
-
-        return [...merged.values()];
-    }
-
     function displayResults(results, query, mode) {
         resultsBody.innerHTML = "";
 
         results.forEach((item) => {
-            const curseforgeLink = item.CURSEFORGE
-                ? `<a href="https://www.curseforge.com/minecraft/mc-mods/${item.CURSEFORGE}" 
-                       target="_blank" rel="noopener noreferrer" title="在 CurseForge 查看">
-                       <img src="curseforge.svg" alt="CurseForge" width="16" height="16">
-                   </a>`
+            const curseforgeLink = item.curseforge
+                ? `<a href="https://www.curseforge.com/minecraft/mc-mods/${item.curseforge}" 
+                           target="_blank" rel="noopener noreferrer" title="在 CurseForge 查看">
+                           <img src="curseforge.svg" alt="CurseForge" width="16" height="16">
+                       </a>`
                 : "";
 
             const row = document.createElement("tr");
             row.innerHTML = `
-                <td>${mode === "en2zh" ? (item.TRANS_NAME || "无翻译") : (item.ORIGIN_NAME || "无翻译")}</td>
-                <td>${highlightQuery(mode === "en2zh" ? item.ORIGIN_NAME : item.TRANS_NAME, query)}</td>
-                <td title="${Array.from(item.KEYS).join("\n")}">
-                    ${item.MODID || "未知模组"} (${Array.from(item.VERSIONS).join(", ")})
+                <td>${highlightQuery(mode === "en2zh" ? item.trans_name : item.origin_name, query)}</td>
+                <td>${highlightQuery(mode === "en2zh" ? item.origin_name : item.trans_name, query)}</td>
+                <td title="${item.key || ''}">
+                    ${item.modid || "未知模组"} (${item.version || 'N/A'})
                     ${curseforgeLink}
                 </td>
                 <td>${item.frequency || 0}</td>
@@ -101,11 +79,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function highlightQuery(text, query) {
         if (!text || !query) return text || "";
-
         const regex = new RegExp(query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi");
         return text.replace(regex, (match) => `<span class="highlight">${match}</span>`);
     }
-
+    
     function setupPagination(totalItems, query, mode) {
         pagination.innerHTML = "";
 
@@ -146,8 +123,18 @@ document.addEventListener("DOMContentLoaded", () => {
             startPage = Math.max(1, endPage - maxPagesToShow + 1);
         }
 
+        if (startPage > 1) {
+            addPageButton('1', 1);
+            if (startPage > 2) paginationList.insertAdjacentHTML('beforeend', '<li class="page-item disabled"><span class="page-link">...</span></li>');
+        }
+
         for (let i = startPage; i <= endPage; i++) {
             addPageButton(i, i);
+        }
+
+        if (endPage < totalPages) {
+            if (endPage < totalPages - 1) paginationList.insertAdjacentHTML('beforeend', '<li class="page-item disabled"><span class="page-link">...</span></li>');
+            addPageButton(totalPages, totalPages);
         }
 
         addPageButton("&raquo;", totalPages, currentPage === totalPages);

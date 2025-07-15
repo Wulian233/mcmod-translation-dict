@@ -1,0 +1,7 @@
+* text eol=lf
+*.txt text eol=crlf
+
+*.png binary
+*.ico binary
+
+package-lock generated
