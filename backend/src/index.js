@@ -21,7 +21,7 @@ export default {
     if (path === "/search") {
       const query = queryParams.get("q");
       const page = parseInt(queryParams.get("page")) || 1;
-      const mode = queryParams.get("mode") || "en2zh"; // 默认为英译中
+      const mode = queryParams.get("mode") || "en2zh";
       const offset = (page - 1) * 50;
 
       if (!query || query.trim() === "") {
@@ -30,29 +30,25 @@ export default {
           headers: { ...headers, "Content-Type": "application/json" },
         });
       }
-      
+
       const searchTerm = query.trim().toLowerCase();
       const likePattern = `${searchTerm}%`;
       const searchColumn = mode === 'en2zh' ? 'origin_name' : 'trans_name';
 
-      // 使用完整的请求URL作为缓存键，确保分页结果被正确缓存
       const cacheKey = new Request(request.url, request);
       const cachedResponse = await cache.match(cacheKey);
-      if (cachedResponse) {
-        return cachedResponse;
-      }
+      if (cachedResponse) return cachedResponse;
 
       try {
-        const aliasedSearchColumnLower = `LOWER(d.${searchColumn})`;
-        const searchColumnLower = `LOWER(${searchColumn})`;
-        
         const resultsQuery = `
-          WITH Frequencies AS (
-            SELECT
-              origin_name,
-              trans_name,
-              COUNT(*) AS frequency
+          WITH FilteredDict AS (
+            SELECT origin_name, trans_name, modid, version, key, curseforge
             FROM dict
+            WHERE LOWER(${searchColumn}) LIKE ?
+          ),
+          Frequencies AS (
+            SELECT origin_name, trans_name, COUNT(*) AS frequency
+            FROM FilteredDict
             GROUP BY origin_name, trans_name
           ),
           RankedMatches AS (
@@ -65,45 +61,35 @@ export default {
               d.curseforge,
               f.frequency,
               CASE
-                WHEN ${aliasedSearchColumnLower} = ? THEN 3
-                ELSE 2
+                WHEN LOWER(d.${searchColumn}) = ? THEN 3 ELSE 2
               END AS match_weight,
-              ROW_NUMBER() OVER(PARTITION BY d.origin_name, d.trans_name ORDER BY d.version DESC) as rn
-            FROM dict d
+              ROW_NUMBER() OVER (PARTITION BY d.origin_name, d.trans_name ORDER BY d.version DESC) AS rn
+            FROM FilteredDict d
             JOIN Frequencies f ON d.origin_name = f.origin_name AND d.trans_name = f.trans_name
-            WHERE ${aliasedSearchColumnLower} LIKE ?
           )
-          SELECT *
+          SELECT
+            trans_name, origin_name, modid, version, key, curseforge, frequency
           FROM RankedMatches
           WHERE rn = 1
           ORDER BY match_weight DESC, frequency DESC, origin_name
           LIMIT 50 OFFSET ?;
         `;
 
-        // 统计唯一的翻译对数量
         const countQuery = `
           SELECT COUNT(*) as total FROM (
-            SELECT DISTINCT origin_name, trans_name
-            FROM dict
-            WHERE ${searchColumnLower} LIKE ?
+            SELECT 1 FROM dict
+            WHERE LOWER(${searchColumn}) LIKE ?
+            GROUP BY origin_name, trans_name
           );
         `;
 
-        const resultsPromise = env.DB.prepare(resultsQuery)
-          .bind(searchTerm, likePattern, offset)
-          .all();
-
-        const countPromise = env.DB.prepare(countQuery)
-          .bind(likePattern)
-          .first();
-
         const [resultsData, countResult] = await Promise.all([
-          resultsPromise,
-          countPromise,
+          env.DB.prepare(resultsQuery).bind(likePattern, searchTerm, offset).all(),
+          env.DB.prepare(countQuery).bind(likePattern).first()
         ]);
 
-        const total = countResult ? countResult.total : 0;
         const results = resultsData.results || [];
+        const total = countResult ? countResult.total : 0;
 
         const responseData = {
           query,
