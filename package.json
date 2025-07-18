@@ -1,6 +1,6 @@
 {
     "name": "mcmod-translation-dict",
-    "version": "1.7.0",
+    "version": "1.8.0",
     "description": "MC模组翻译参考词典",
     "main": "frontend/index.html",
     "scripts": {
@@ -9,6 +9,6 @@
     },
     "devDependencies": {
         "taze": "^19.1.0",
-        "vercel": "^44.4.1"
+        "vercel": "^44.4.3"
     }
 }

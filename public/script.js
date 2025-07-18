@@ -24,6 +24,7 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
+        saveSearchHistory(query);
         updateResultsUI("正在搜索中...");
 
         const mode = searchMode.value;
@@ -39,7 +40,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
 
                 displayResults(data.results, query, mode);
-                setupPagination(data.total, query, mode);
+                setupPagination(data.total);
             })
             .catch((error) => {
                 console.error("查询失败:", error);
@@ -83,7 +84,7 @@ document.addEventListener("DOMContentLoaded", () => {
         return text.replace(regex, (match) => `<span class="highlight">${match}</span>`);
     }
     
-    function setupPagination(totalItems, query, mode) {
+    function setupPagination(totalItems) {
         pagination.innerHTML = "";
 
         const totalPages = Math.ceil(totalItems / itemsPerPage);
@@ -141,4 +142,111 @@ document.addEventListener("DOMContentLoaded", () => {
 
         pagination.appendChild(paginationList);
     }
+
+    const changelogLink = document.getElementById("changelogLink");
+    const changelogModal = new bootstrap.Modal(document.getElementById('changelogModal'));
+    const changelogBody = document.getElementById("changelogBody");
+
+    const changelogData = [
+        {
+            version: "v1.8.0",
+            date: "2025-07-18",
+            changes: [
+                "✨ 新增：更新日志功能"
+            ]
+        },
+        {
+            version: "v1.7.0",
+            date: "2025-07-15",
+            changes: [
+                "✨ 新增：使用加强版数据库，多出超2万条译文！现在总量来到71万！",
+                "🎨 优化：加快搜索速度",
+                "🎨 优化：解决部分地区无法正常显示的问题。现在使用国内CDN来获取bootstrap.js",
+                "🎨 优化：优化搜索逻辑",
+                "1. 移除空格分词：不再将搜索词（如 \"hello world\"）拆分为 \"hello\" 和 \"world\" 分别搜索，现在将其整体搜索",
+                "2. 最终结果按 “匹配权重” 和 “全局频率” 降序排列",
+                "3. 修正了搜索缓存，现在缓存键会包含分页参数，确保不同页面的缓存不会相互覆盖",
+                "🐛 修复：修复了表格里频率统计数字出错的问题"
+            ]
+        },
+        {
+            version: "v1.6.0",
+            date: "2025-05-04",
+            changes: [
+                "🎨 优化：优化了后端搜索代码"
+            ]
+        },
+        {
+            version: "v1.5.0",
+            date: "2025-04-13",
+            changes: [
+                "🎨 优化：优化了网站在手机上的显示效果",
+                "🐛 修复：复了一些尺寸的屏幕上的搜索结果让表格超出屏幕的问题"
+            ]
+        },
+        {
+            version: "v1.4.0",
+            date: "2025-04-05",
+            changes: [
+                "✨ 新增：支持中英互查！同样支持高亮搜索词",
+                "🎨 优化：为上述新功能添加了暗色模式支持，为超链接添加了暗色模式支持"
+            ]
+        },
+        {
+            version: "v1.3.0",
+            date: "2025-04-04",
+            changes: [
+                "✨ 新增：实现CurseForge模组链接跳转。点击图标即可",
+                "🎨 优化：加快搜索速度",
+                "🎨 优化：实现更好的搜索结果算法",
+                "1. 现在仅搜索开头匹配或全匹配的单词",
+                "2. 如果输入多个单词，则智能拆分每个单词独立搜索",
+                "3. 按全匹配/部分匹配/出现频率进行排序",
+                "🐛 修复：修复了分页bug"
+            ]
+        },
+        {
+            version: "v1.2.0",
+            date: "2025-03-15",
+            changes: [
+                "🎨 优化：优化了后端搜索代码",
+                "🐛 修复：修复了分页bug"
+            ]
+        },
+        {
+            version: "v1.1.0",
+            date: "2025-02-21",
+            changes: [
+                "✨ 新增：支持暗色模式"
+            ]
+        },
+        {
+            version: "v1.0.0",
+            date: "2025-02-17",
+            changes: [
+                "🚀 项目首次上线！"
+            ]
+        }
+    ];
+
+    function populateChangelog() {
+        let content = "";
+        changelogData.forEach(entry => {
+            content += `
+                <div class="changelog-entry">
+                    <h6>${entry.version} (${entry.date})</h6>
+                    <ul>
+                        ${entry.changes.map(change => `<li>${change}</li>`).join('')}
+                    </ul>
+                </div>
+            `;
+        });
+        changelogBody.innerHTML = content;
+    }
+
+    changelogLink.addEventListener("click", (e) => {
+        e.preventDefault();
+        populateChangelog();
+        changelogModal.show();
+    });
 });

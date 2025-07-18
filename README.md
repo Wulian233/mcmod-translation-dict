@@ -62,13 +62,13 @@ https://api.vmct-cn.top/search?q=${query}&page=${currentPage}&mode=${mode}
 所需环境：NodeJS
 
 本项目所用的后端数据库和API分别部署在Cloudflare的D1 SQL数据库和Worker上，
-然而D1数据库并不支持 [i18n-dict](https://github.com/CFPATools/i18n-dict) 项目
+然而D1数据库并不支持 [i18n Dict Extender](https://github.com/VM-Chinese-translate-group/i18n-Dict-Extender) 项目
 中的sqlite3 `.db`格式，所以还需要转换为`.sql`格式。
 
 关于创建worker并链接D1数据库请看[官方教程](https://developers.cloudflare.com/d1/get-started/)，下方仅列出上传数据库的处理步骤：
 
-1. 下载原`.db`格式的数据库文件，并在SQLite官网下载[SQLite Tools](https://www.sqlite.org/2025/sqlite-tools-win-x64-3490100.zip)并解压。
-2. 打开sqlite3.exe，并输入下面的命令转换格式：
+1. 下载原`.db`格式的数据库文件，并在SQLite官网下载[SQLite Tools](https://www.sqlite.org/2025/sqlite-tools-win-x64-3500200.zip)并解压。
+2. 打开sqlite3.exe（我们只需要它。其他的可以删除），并输入下面的命令转换格式：
 
 ```
 sqlite> .open Dict-Sqlite.db

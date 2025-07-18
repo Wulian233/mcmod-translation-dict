@@ -21,6 +21,21 @@ h1 {
   color: #fff;
 }
 
+.changelog-entry {
+  margin-bottom: 1.5rem;
+}
+
+.changelog-entry h6 {
+  font-weight: bold;
+  color: #0089de;
+  margin-bottom: 0.5rem;
+}
+
+.changelog-entry ul {
+  padding-left: 20px;
+  margin-bottom: 0;
+}
+
 .table {
   margin-top: 20px;
 }
@@ -29,11 +44,6 @@ h1 {
   background-color: #ffeb3b;
   font-weight: bold;
   color: #000;
-}
-
-footer {
-  margin-top: 40px;
-  color: #666;
 }
 
 .pagination {
@@ -85,6 +95,11 @@ footer {
   background-color: #004578;
 }
 
+footer {
+  margin-top: 40px;
+  color: #666;
+}
+
 th,
 td {
   padding: 12px;
@@ -112,6 +127,18 @@ tr:hover {
     color: #009dfe;
   }
 
+  a {
+    color: #0090fe;
+  }
+  
+  a:hover {
+    color: #0073d1;
+  }
+
+  footer {
+    color: #bbb;
+  }
+
   #searchInput {
     background-color: #555;
     color: #ddd;
@@ -131,16 +158,22 @@ tr:hover {
     background-color: #0065b1;
   }
 
-  a {
-    color: #0090fe;
+    .changelog-entry h6 {
+    color: #009dfe;
   }
   
-  a:hover {
-    color: #0073d1;
+  .modal-content {
+      background-color: #404045;
+      color: #ddd;
   }
 
-  footer {
-    color: #bbb;
+  .modal-header, .modal-footer {
+      border-bottom-color: #555;
+      border-top-color: #555;
+  }
+  
+  .btn-close {
+      filter: invert(1) grayscale(100%) brightness(200%);
   }
 
   .container {

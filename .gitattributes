@@ -4,4 +4,4 @@
 *.png binary
 *.ico binary
 
-package-lock generated
+package-lock.json generated
