@@ -12,6 +12,10 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
+    let lastSearchTime = 0;
+    let lastSearchKey = "";
+    const MIN_INTERVAL = 1000;
+
     let currentPage = 1;
     const itemsPerPage = 50;
 
@@ -24,10 +28,19 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
-        saveSearchHistory(query);
+        // 速率限制：一秒最多一次
+        const now = Date.now();
+        if (now - lastSearchTime < MIN_INTERVAL) return;
+        lastSearchTime = now;
+        
+        const mode = searchMode.value;
+        const searchKey = `${query}_${mode}_${currentPage}`;
+        // 如果当前搜索和上一次一样，跳过请求
+        if (searchKey === lastSearchKey) return;
+
+        lastSearchKey = searchKey;
         updateResultsUI("正在搜索中...");
 
-        const mode = searchMode.value;
         fetch(`https://api.vmct-cn.top/search?q=${encodeURIComponent(query)}&page=${currentPage}&mode=${mode}`)
             .then((response) => {
                 if (!response.ok) throw new Error("网络响应错误");
@@ -148,6 +161,14 @@ document.addEventListener("DOMContentLoaded", () => {
     const changelogBody = document.getElementById("changelogBody");
 
     const changelogData = [
+        {
+            version: "v1.9.0",
+            date: "2025-07-21",
+            changes: [
+                "🎨 优化：为前端搜索加了防抖，最快一秒一次的速率限制",
+                "🎨 优化：如果搜索内容和上次内容完全相同，则跳过api请求"
+            ]
+        },
         {
             version: "v1.8.0",
             date: "2025-07-18",

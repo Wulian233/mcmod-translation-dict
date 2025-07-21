@@ -30,7 +30,7 @@
 
 ## 技术细节
 
-我们建议开发者搭建属于自己的API。由于词典数据库过于庞大，接近七十万行，
+我们建议开发者搭建属于自己的API。由于词典数据库过于庞大，超过七十万行，
 以及Cloudflare Worker的免费限制，一天能查询的数量有限，如果过多的用户查询很有可能不堪重负。
 
 本项目网站关于部署及注意事项均在下面列出，供有兴趣的开发者搭建自己的版本。
@@ -68,22 +68,19 @@ https://api.vmct-cn.top/search?q=${query}&page=${currentPage}&mode=${mode}
 关于创建worker并链接D1数据库请看[官方教程](https://developers.cloudflare.com/d1/get-started/)，下方仅列出上传数据库的处理步骤：
 
 1. 下载原`.db`格式的数据库文件，并在SQLite官网下载[SQLite Tools](https://www.sqlite.org/2025/sqlite-tools-win-x64-3500200.zip)并解压。
+
 2. 打开sqlite3.exe（我们只需要它。其他的可以删除），并输入下面的命令转换格式：
 
 ```
 sqlite> .open Dict-Sqlite.db
-sqlite> .output Dict-Sqlite.sql
+sqlite> .output input.sql
 sqlite> .dump
 sqlite> .exit
 ```
 
-3. 然后用文本编辑器（推荐VSCode）打开`Dict-Sqlite.sql`，删除第二行和最后一行：
-
-```sql
-BEGIN TRANSACTION;
-...
-COMMIT;
-```
+3. 由于D1数据库的限制，我们还需要对数据库文件进行进一步的处理。如果你有Python环境，可以运行本仓库下的`fix_sqlite.py`。
+如果没有，可以下载[release](https://github.com/Wulian233/mcmod-translation-dict/releases/tag/fix_sqlite)里打包好的版本。
+请把程序放在和`input.sql`一个目录下！运行结束后会自动删除`input.sql`并生成`Dict-Sqlite.sql`。
 
 4. 最后在本地终端输入
 
