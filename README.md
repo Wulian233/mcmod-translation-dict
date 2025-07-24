@@ -10,7 +10,7 @@
 
 一方面，为了适应 CFPA 团队翻译数据的持续更新扩充，
 同时应对原[MC百科](https://dict.mcmod.cn/)数据更新缓慢、页面使用不便的现状，
-我们以MC百科版功能和页面为参照开发了开源网页版本，不仅完整保留原有功能，**还新增了中英互查、暗色模式、及时的数据同步等增强特性**；
+我们以MC百科版功能和页面为参照开发了开源网页版本，不仅完整保留原有功能，还新增了**中英互查、暗色模式、移动端适配、加强版数据库**等增强特性；
 
 另一方面，针对部分热门Minecraft模组（如机械动力）的简体中文翻译由开发者直接维护（而非通过CFPA社区协作），
 导致CFPA官方维护的MC百科模组词典（数据源为i18n-dict）存在更新滞后或内容缺失的问题。
@@ -78,9 +78,14 @@ sqlite> .dump
 sqlite> .exit
 ```
 
-3. 由于D1数据库的限制，我们还需要对数据库文件进行进一步的处理。如果你有Python环境，可以运行本仓库下的`fix_sqlite.py`。
-如果没有，可以下载[release](https://github.com/Wulian233/mcmod-translation-dict/releases/tag/fix_sqlite)里打包好的版本。
-请把程序放在和`input.sql`一个目录下！运行结束后会自动删除`input.sql`并生成`Dict-Sqlite.sql`。
+3. 由于D1数据库的限制，我们还需要对数据库文件进行进一步的处理。
+你可以在[release](https://github.com/Wulian233/mcmod-translation-dict/releases/tag/fix_sqlite)里下载适用于你的系统的打包好的版本。
+
+> [!TIP]
+> 请把程序放在和`input.sql`一个目录下！运行结束后会自动删除`input.sql`并生成`Dict-Sqlite.sql`。
+>
+> 注：Linux 和 MacOS 系统记得解压后运行，其由 Python 编写。Windows 版由 AI 转换为 Rust 编写，速度快了超过一倍，大小仅 165kb！
+> 它们的源代码在 [fix-sqlite-tool](fix-sqlite-tool/) 目录下。
 
 4. 最后在本地终端输入
 

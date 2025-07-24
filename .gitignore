@@ -19,3 +19,7 @@ wheels/
 .ruff_cache/
 .venv
 *.spec
+
+debug
+target
+*.pdb

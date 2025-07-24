@@ -1,0 +1,7 @@
+[package]
+name = "fix-sqlite"
+version = "1.0.0"
+edition = "2024"
+
+[build-dependencies]
+winres = "0.1.12"
