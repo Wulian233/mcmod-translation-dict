@@ -35,21 +35,70 @@
 
 本项目网站关于部署及注意事项均在下面列出，供有兴趣的开发者搭建自己的版本。
 
-### API格式
+### API 格式
 
-本项目API请求格式如下：
+本项目 API 请求格式如下：
 
 ```
 https://api.vmct-cn.top/search?q=${query}&page=${currentPage}&mode=${mode}
 ```
 
-其中，`query`参数为搜索的内容；`currentPage`参数为查询的页面；`mode`参数为搜索的模式。
+其中：
 
-查询页面数默认为`1`，一页最多返回50条条目。
+  * `query` 参数为搜索的内容。
+  * `currentPage` 参数为查询的页码，默认为 `1`。
+  * `mode` 参数为搜索模式，有两种有效值：
+      * `en2zh`：英文查中文（默认）。
+      * `zh2en`：中文查英文。
 
-搜索模式共有两种有效值，分别是英文查中文的`en2zh`，和中文查英文的`zh2en`。默认为`en2zh`模式。
+每页最多返回 50 条条目。
 
-有关API返回的json格式烦请各位开发者自行了解探索，这里受篇幅所限以及作者本人才疏学浅，无法给出准确的语言描述orz。
+**API 返回的 JSON 格式示例：**
+
+```json
+{
+  "query": "stone",
+  "results": [
+    {
+      "trans_name": "石头",
+      "origin_name": "Stone",
+      "modid": "mysticalagriculture",
+      "version": "1.21",
+      "key": "crop.mysticalagriculture.stone",
+      "curseforge": "mystical-agriculture",
+      "frequency": 81
+    },
+    {
+      "trans_name": "石",
+      "origin_name": "Stone",
+      "modid": "silentgear",
+      "version": "1.20",
+      "key": "material.silentgear.stone",
+      "curseforge": "silent-gear",
+      "frequency": 13
+    }
+    // ... 更多结果
+  ],
+  "total": 1328,
+  "page": 1,
+  "mode": "en2zh"
+}
+```
+
+返回的 JSON 对象包含以下字段：
+
+  * `query`：当前搜索的查询词。
+  * `results`：一个数组，包含符合搜索条件的翻译条目。每个条目都是一个对象，包含：
+      * `trans_name`：翻译后的名称。
+      * `origin_name`：原始名称。
+      * `modid`：所属模组的 ID。
+      * `version`：模组的版本。
+      * `key`：译文对应的键名，鼠标悬停在网页上的“所属模组”条目上方时会显示此键名。
+      * `curseforge`：CurseForge 上的模组 ID。
+      * `frequency`：该译文的出现频率，用于智能排序。
+  * `total`：符合搜索条件的总条目数。
+  * `page`：当前查询的页码。
+  * `mode`：当前搜索模式。
 
 ### 前端
 
@@ -85,7 +134,7 @@ sqlite> .exit
 > 请把程序放在和`input.sql`一个目录下！运行结束后会自动删除`input.sql`并生成`Dict-Sqlite.sql`。
 >
 > 注：Linux 和 MacOS 系统记得解压后运行。此工具代码由 AI 生成，作者其实不会 Rust。
-> 它们的源代码在 [fix-sqlite-tool](fix-sqlite-tool/) 目录下。
+> 它们的源代码在 [sql_cleaner](sql_cleaner/) 目录下。
 
 4. 最后在本地终端输入
 
