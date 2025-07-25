@@ -69,7 +69,7 @@ https://api.vmct-cn.top/search?q=${query}&page=${currentPage}&mode=${mode}
 
 1. 下载原`.db`格式的数据库文件，并在SQLite官网下载[SQLite Tools](https://www.sqlite.org/2025/sqlite-tools-win-x64-3500200.zip)并解压。
 
-2. 打开sqlite3.exe（我们只需要它。其他的可以删除），并输入下面的命令转换格式：
+2. 打开sqlite3.exe（我们只需要它，其他的可以删除），并输入下面的命令转换格式：
 
 ```
 sqlite> .open Dict-Sqlite.db
@@ -79,12 +79,12 @@ sqlite> .exit
 ```
 
 3. 由于D1数据库的限制，我们还需要对数据库文件进行进一步的处理。
-你可以在[release](https://github.com/Wulian233/mcmod-translation-dict/releases/tag/fix_sqlite)里下载适用于你的系统的打包好的版本。
+你可以在[release](https://github.com/Wulian233/mcmod-translation-dict/releases/tag/sql_cleaner)里下载适用于你的系统的打包好的版本。
 
 > [!TIP]
 > 请把程序放在和`input.sql`一个目录下！运行结束后会自动删除`input.sql`并生成`Dict-Sqlite.sql`。
 >
-> 注：Linux 和 MacOS 系统记得解压后运行，其由 Python 编写。Windows 版由 AI 转换为 Rust 编写，速度快了超过一倍，大小仅 165kb！
+> 注：Linux 和 MacOS 系统记得解压后运行。此工具代码由 AI 生成，作者其实不会 Rust。
 > 它们的源代码在 [fix-sqlite-tool](fix-sqlite-tool/) 目录下。
 
 4. 最后在本地终端输入

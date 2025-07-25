@@ -31,6 +31,10 @@ h1,
   border-radius: 4px;
 }
 
+#searchMode {
+  max-width: 150px;
+}
+
 #searchButton {
   background-color: var(--primary-color);
   color: #fff;
@@ -133,6 +137,25 @@ tr:hover {
     --container-bg: #404045;
     --border-color: #555;
     --footer-color: #bbb;
+  }
+
+  /* 滚动条 */
+  * {
+    scrollbar-color: #666 #333;
+  }
+
+  *::-webkit-scrollbar {
+    width: 10px;
+    background: #333;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background: #666;
+    border-radius: 6px;
+  }
+
+  *::-webkit-scrollbar-thumb:hover {
+    background: #888;
   }
 
   a:hover {

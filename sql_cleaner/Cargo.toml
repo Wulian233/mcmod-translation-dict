@@ -1,0 +1,15 @@
+[package]
+name = "sql_cleaner"
+version = "1.0.0"
+edition = "2024"
+
+[build-dependencies]
+winres = "0.1.12"
+
+[profile.release]
+opt-level = "z"
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+strip = "symbols"
+debug = false

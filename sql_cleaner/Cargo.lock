@@ -3,13 +3,6 @@
 version = 4
 
 [[package]]
-name = "fix-sqlite"
-version = "1.0.0"
-dependencies = [
- "winres",
-]
-
-[[package]]
 name = "proc-macro2"
 version = "1.0.95"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -45,6 +38,13 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "sql_cleaner"
+version = "1.0.0"
+dependencies = [
+ "winres",
 ]
 
 [[package]]

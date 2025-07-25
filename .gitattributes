@@ -4,4 +4,5 @@
 *.png binary
 *.ico binary
 
+Cargo.lock generated
 package-lock.json generated

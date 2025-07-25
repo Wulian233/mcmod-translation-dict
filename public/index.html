@@ -21,11 +21,11 @@
                     class="form-control"
                     placeholder="请输入搜索词..."
                 />
-                <select id="searchMode" class="form-select" style="max-width: 150px;" aria-label="搜索模式">
+                <select id="searchMode" class="form-select" aria-label="搜索模式">
                     <option value="en2zh">英文查中文</option>
                     <option value="zh2en">中文查英文</option>
                 </select>
-                <button id="searchButton" class="btn btn-primary">查询</button>
+                <button id="searchButton" class="btn btn-primary" type="button">查询</button>
             </div>
             <div id="results">
                 <table class="table table-striped">
@@ -55,15 +55,15 @@
                     项目生成，遵循
                     <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh-hans">CC BY-NC-SA 4.0 协议</a>。
                 </p>
-                <p>最后更新于：2025-07-21 | <a href="#" id="changelogLink">更新日志</a></p>
+                <p>最后更新于：2025-07-25 | <a href="#" id="changelogLink">更新日志</a></p>
             </footer>
         </div>
-        <div class="modal fade" id="changelogModal" tabindex="-1" aria-labelledby="changelogModalLabel" aria-hidden="true">
+        <div class="modal fade" id="changelogModal" tabindex="-1" aria-labelledby="changelogModalLabel">
             <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title" id="changelogModalLabel">📜 更新日志</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭"></button>
                     </div>
                     <div class="modal-body" id="changelogBody">
                         </div>
