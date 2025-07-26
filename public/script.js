@@ -1,9 +1,12 @@
 const MIN_INTERVAL = 1000; // 搜索最小间隔时间（毫秒）
 const itemsPerPage = 50; // 每页显示的项目数量
+const API_BASE_URL = "https://api.vmct-cn.top"; // API 基础 URL
+const API_SEARCH_MCMOD = `https://search.mcmod.cn/s?key=`; // MC百科搜索 API
 
 let lastSearchTime = 0; // 上次搜索时间戳
 let lastSearchKey = ""; // 上次搜索的关键字（包含查询、模式和页码）
 let currentPage = 1; // 当前页码
+let changelogModal;
 
 const searchButton = document.getElementById("searchButton");
 const searchInput = document.getElementById("searchInput");
@@ -11,14 +14,21 @@ const searchMode = document.getElementById("searchMode");
 const resultsBody = document.getElementById("resultsBody");
 const pagination = document.getElementById("pagination");
 const changelogLink = document.getElementById("changelogLink");
-const changelogModal = new bootstrap.Modal(document.getElementById("changelogModal"));
 const changelogBody = document.getElementById("changelogBody");
 
 // 更新日志数据
 const changelogData = [
+  // {
+  //   version: "v1.11.0",
+  //   date: "2025-07-28",
+  //   changes: [
+  //       "✨ 新增：搜索出的模组支持跳转到MC百科搜索页面",
+  //       "🐛 修复：修复了小概率由于js加载顺序错误导致无法搜索的问题"
+  //   ],
+  // },
   {
     version: "v1.10.0",
-    date: "2025-07-21",
+    date: "2025-07-25",
     changes: [
         "🎨 优化：请AI重构了前端js代码",
         "🎨 优化：请AI用Rust取代Python重写了开发中使用的数据库处理工具，速度快了超3.5倍",
@@ -110,6 +120,8 @@ const changelogData = [
 document.addEventListener("DOMContentLoaded", initApp);
 
 function initApp() {
+  changelogModal = new bootstrap.Modal(document.getElementById("changelogModal"));
+
   bindSearchEvents();
   bindChangelogEvents();
 }
@@ -153,7 +165,7 @@ function search(resetPage = true) {
   lastSearchKey = searchKey;
   updateResultsUI("正在搜索中...");
 
-  fetch(`https://api.vmct-cn.top/search?q=${encodeURIComponent(query)}&page=${currentPage}&mode=${mode}`)
+  fetch(`${API_BASE_URL}/search?q=${encodeURIComponent(query)}&page=${currentPage}&mode=${mode}`)
     .then((response) => {
       if (!response.ok) throw new Error("网络响应错误");
       return response.json();
@@ -185,6 +197,13 @@ function displayResults(results, query, mode) {
       ? `<a href="https://www.curseforge.com/minecraft/mc-mods/${item.curseforge}"
                  target="_blank" rel="noopener noreferrer" title="在 CurseForge 查看">
                  <img src="curseforge.svg" alt="CurseForge" width="16" height="16">
+               </a>`
+      : "";
+
+    const mcmodSearchLink = item.modid
+      ? `<a href="${API_SEARCH_MCMOD}${encodeURIComponent(item.modid)}"
+                 target="_blank" rel="noopener noreferrer" title="在 MC 百科搜索 ModID">
+                 <img src="mcmod.png" alt="MC百科" width="16" height="16">
                </a>`
       : "";
 
