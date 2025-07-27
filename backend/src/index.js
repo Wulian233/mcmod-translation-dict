@@ -15,7 +15,7 @@ export default {
       return new Response(null, { headers });
     }
 
-    const cacheTtl = 60 * 60 * 24 * 6; // 缓存6天
+    const cacheTtl = 60 * 60 * 24 * 7; // 缓存7天
     const cache = caches.default;
 
     if (path === "/search") {
@@ -26,6 +26,13 @@ export default {
 
       if (!query || query.trim() === "") {
         return new Response(JSON.stringify({ error: "查询参数不能为空" }), {
+          status: 400,
+          headers: { ...headers, "Content-Type": "application/json" },
+        });
+      }
+
+      if (query.length > 50) {
+        return new Response(JSON.stringify({ error: "搜索词长度不能超过50个字符" }), {
           status: 400,
           headers: { ...headers, "Content-Type": "application/json" },
         });

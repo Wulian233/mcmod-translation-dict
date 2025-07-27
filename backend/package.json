@@ -1,6 +1,6 @@
 {
     "name": "mcmod-translation-dict-api",
-    "version": "1.10.0",
+    "version": "1.11.0",
     "private": true,
     "scripts": {
         "deploy": "wrangler deploy",
@@ -11,6 +11,6 @@
         "@cloudflare/vitest-pool-workers": "^0.8.57",
         "taze": "^19.1.0",
         "vitest": "^3.2.4",
-        "wrangler": "^4.25.0"
+        "wrangler": "^4.26.0"
     }
 }

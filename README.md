@@ -51,7 +51,7 @@ https://api.vmct-cn.top/search?q=${query}&page=${currentPage}&mode=${mode}
       * `en2zh`：英文查中文（默认）。
       * `zh2en`：中文查英文。
 
-每页最多返回 50 条条目。
+另外还做了一些限制：每页最多返回 50 条条目，搜索词不能超过 50 字符，一次最多返回 500 页
 
 **API 返回的 JSON 格式示例：**
 
@@ -105,6 +105,8 @@ https://api.vmct-cn.top/search?q=${query}&page=${currentPage}&mode=${mode}
 前端为纯html js css内容，本项目将其托管在了Vercel上并连接了Github仓库，仓库推送更新自动同步项目页面。
 
 在部署自己的项目时，请记得将 `public/script.js` 里的第三行 `API_BASE_URL` 替换为你部署的 API 地址。
+
+另外还在前端做了速率限制（可配置时间），每秒最多搜索一次。
 
 ### 后端
 

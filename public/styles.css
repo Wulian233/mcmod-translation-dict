@@ -117,6 +117,10 @@ td {
 }
 
 th {
+  white-space: nowrap;
+}
+
+th {
   background-color: #f8f8f8;
   font-weight: 600;
   color: var(--text-color);

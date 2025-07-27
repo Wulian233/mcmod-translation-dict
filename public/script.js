@@ -18,14 +18,16 @@ const changelogBody = document.getElementById("changelogBody");
 
 // 更新日志数据
 const changelogData = [
-  // {
-  //   version: "v1.11.0",
-  //   date: "2025-07-28",
-  //   changes: [
-  //       "✨ 新增：搜索出的模组支持跳转到MC百科搜索页面",
-  //       "🐛 修复：修复了小概率由于js加载顺序错误导致无法搜索的问题"
-  //   ],
-  // },
+  {
+    version: "v1.11.0",
+    date: "2025-07-27",
+    changes: [
+        "✨ 新增：搜索出的模组支持跳转到MC百科搜索页面",
+        "✨ 新增：现在搜索长度不能大于50字符",
+        "🎨 优化：代码优化，便于开发者搭建自己的版本。详见Github README",
+        "🐛 修复：修复了搜索结果含超长译文时表头会被伸长的问题"
+    ],
+  },
   {
     version: "v1.10.0",
     date: "2025-07-25",
@@ -152,6 +154,11 @@ function search(resetPage = true) {
     return;
   }
 
+  if (query.length > 50) {
+    updateResultsUI("搜索词长度不能超过50个字符");
+    return;
+  }
+
   // 速率限制：一秒最多一次
   const now = Date.now();
   if (now - lastSearchTime < MIN_INTERVAL) return;
@@ -195,14 +202,14 @@ function displayResults(results, query, mode) {
   results.forEach((item) => {
     const curseforgeLink = item.curseforge
       ? `<a href="https://www.curseforge.com/minecraft/mc-mods/${item.curseforge}"
-                 target="_blank" rel="noopener noreferrer" title="在 CurseForge 查看">
+                 target="_blank" rel="noopener noreferrer" title="在 CurseForge 查看" style="margin-left: 4px;">
                  <img src="curseforge.svg" alt="CurseForge" width="16" height="16">
                </a>`
       : "";
 
     const mcmodSearchLink = item.modid
       ? `<a href="${API_SEARCH_MCMOD}${encodeURIComponent(item.modid)}"
-                 target="_blank" rel="noopener noreferrer" title="在 MC 百科搜索 ModID">
+                 target="_blank" rel="noopener noreferrer" title="在 MC 百科搜索 ModID" style="margin-left: 4px;">
                  <img src="mcmod.png" alt="MC百科" width="16" height="16">
                </a>`
       : "";
@@ -211,7 +218,7 @@ function displayResults(results, query, mode) {
     row.innerHTML = `
         <td>${highlightQuery(mode === "en2zh" ? item.trans_name : item.origin_name, query)}</td>
         <td>${highlightQuery(mode === "en2zh" ? item.origin_name : item.trans_name, query)}</td>
-        <td title="${item.key || ""}">${item.modid || "未知模组"} (${item.version || "N/A"}) ${curseforgeLink}</td>
+        <td title="${item.key || ""}">${item.modid || "未知模组"} (${item.version || "N/A"}) ${curseforgeLink} ${mcmodSearchLink}</td>
         <td>${item.frequency || 0}</td>
       `;
     resultsBody.appendChild(row);
