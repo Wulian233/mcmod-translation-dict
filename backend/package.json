@@ -1,6 +1,5 @@
 {
     "name": "mcmod-translation-dict-api",
-    "version": "1.11.0",
     "private": true,
     "scripts": {
         "deploy": "wrangler deploy",
