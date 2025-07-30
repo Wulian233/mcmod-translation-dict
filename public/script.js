@@ -1,14 +1,17 @@
 const MIN_INTERVAL = 1000; // 搜索最小间隔时间（毫秒）
 const itemsPerPage = 50; // 每页显示的项目数量
 const API_BASE_URL = "https://api.vmct-cn.top"; // API 基础 URL
-const API_SEARCH_MCMOD = `https://search.mcmod.cn/s?key=`; // MC百科搜索 API
+const API_SEARCH_MCMOD = "https://search.mcmod.cn/s?key="; // MC百科搜索 API
 
 let lastSearchTime = 0; // 上次搜索时间戳
-let lastSearchKey = ""; // 上次搜索的关键字（包含查询、模式和页码）
+let lastFullSearchKey = ""; // 存储上一次完整搜索的唯一标识
 let currentPage = 1; // 当前页码
 let changelogFetched = false;
 let changelogData = [];
 let changelogModal;
+
+let currentApiResults = []; // 存储当前页从API获取的原始结果
+let totalApiMatches = 0; // 存储API返回的总匹配条目数
 
 const searchButton = document.getElementById("searchButton");
 const searchInput = document.getElementById("searchInput");
@@ -17,6 +20,10 @@ const resultsBody = document.getElementById("resultsBody");
 const pagination = document.getElementById("pagination");
 const changelogLink = document.getElementById("changelogLink");
 const changelogBody = document.getElementById("changelogBody");
+const modFilter = document.getElementById("modFilter");
+const filterContainer = document.getElementById("filterContainer");
+const modSuggestions = document.getElementById("modSuggestions");
+let availableMods = []; // 存储当前页可用的模组列表
 
 document.addEventListener("DOMContentLoaded", initApp);
 
@@ -28,16 +35,29 @@ function initApp() {
 }
 
 function bindSearchEvents() {
-  searchButton.addEventListener("click", search);
+  searchButton.addEventListener("click", () => search(true));
   searchInput.addEventListener("keypress", (e) => {
     if (e.key === "Enter") {
-      search();
+      search(true);
+    }
+  });
+
+  modFilter.addEventListener("input", handleModFilterInput);
+  modFilter.addEventListener("blur", () => {
+    // 延迟隐藏建议，以便点击建议项
+    setTimeout(() => {
+      modSuggestions.style.display = "none";
+    }, 200);
+  });
+  modFilter.addEventListener("focus", () => {
+    if (availableMods.length > 0 && modFilter.value.length === 0) {
+      showAllSuggestions();
     }
   });
 }
 
 function bindChangelogEvents() {
-  changelogLink.addEventListener("click", async (e) => {
+  changelogLink.addEventListener("click", async(e) => {
     e.preventDefault();
     if (!changelogFetched) {
       try {
@@ -55,31 +75,47 @@ function bindChangelogEvents() {
   });
 }
 
-function search(resetPage = true) {
-  if (resetPage) currentPage = 1;
-
+function search(resetPage = false) {
   const query = searchInput.value.trim();
+  const mode = searchMode.value;
+  const currentModFilter = modFilter.value.trim();
+
+  if (resetPage) {
+    currentPage = 1;
+    // 如果是新的搜索词或模式，才重置模组筛选器
+    // 否则如果只是点击分页，或者在同一个搜索词下更改模组筛选，不应重置模组筛选器
+    if (lastFullSearchKey.split("_")[0] !== query || lastFullSearchKey.split("_")[1] !== mode) {
+      modFilter.value = "";
+    }
+  }
+
   if (!query) {
     updateResultsUI("请输入有效的搜索词");
+    hideFilterContainer();
     return;
   }
 
   if (query.length > 50) {
     updateResultsUI("搜索词长度不能超过50个字符");
+    hideFilterContainer();
+    return;
+  }
+
+  const currentFullSearchKey = `${query}_${mode}_${currentPage}_${currentModFilter}`;
+
+  // 如果当前搜索状态与上次完全相同，且没有手动重置页面，则直接跳过请求
+  if (currentFullSearchKey === lastFullSearchKey && !resetPage) {
+    console.log("跳过重复请求:", currentFullSearchKey);
     return;
   }
 
   // 速率限制：一秒最多一次
   const now = Date.now();
-  if (now - lastSearchTime < MIN_INTERVAL) return;
+  if (now - lastSearchTime < MIN_INTERVAL) {
+    if (!resetPage) return;
+  }
   lastSearchTime = now;
 
-  const mode = searchMode.value;
-  const searchKey = `${query}_${mode}_${currentPage}`;
-  // 如果当前搜索和上一次一样，跳过请求
-  if (searchKey === lastSearchKey) return;
-
-  lastSearchKey = searchKey;
   updateResultsUI("正在搜索中...");
 
   fetch(`${API_BASE_URL}/search?q=${encodeURIComponent(query)}&page=${currentPage}&mode=${mode}`)
@@ -90,14 +126,27 @@ function search(resetPage = true) {
     .then((data) => {
       if (!data?.results?.length) {
         updateResultsUI("未找到结果");
+        hideFilterContainer();
+        totalApiMatches = 0;
+        setupPagination(totalApiMatches);
+        lastFullSearchKey = currentFullSearchKey;
         return;
       }
-      displayResults(data.results, query, mode);
-      setupPagination(data.total);
+
+      currentApiResults = data.results;
+      totalApiMatches = data.total;
+
+      setupModFilter(currentApiResults);
+      applyModFilter();
+
+      lastFullSearchKey = currentFullSearchKey;
     })
     .catch((error) => {
       console.error("查询失败:", error);
       updateResultsUI("查询失败，请检查网络或联系作者（Github Issue）。");
+      hideFilterContainer();
+      totalApiMatches = 0;
+      setupPagination(totalApiMatches);
     });
 }
 
@@ -106,8 +155,140 @@ function updateResultsUI(message) {
   pagination.innerHTML = "";
 }
 
+function hideFilterContainer() {
+  filterContainer.style.display = "none";
+  modSuggestions.style.display = "none"; // 隐藏建议列表
+}
+
+function showFilterContainer() {
+  filterContainer.style.display = "block";
+}
+
+function setupModFilter(results) {
+  // 统计当前页每个模组的出现频率
+  const modFrequency = {};
+  results.forEach(item => {
+    if (item.modid) {
+      if (!modFrequency[item.modid]) {
+        modFrequency[item.modid] = 0;
+      }
+      modFrequency[item.modid] += item.frequency || 1;
+    }
+  });
+
+  // 按频率排序模组ID
+  availableMods = Object.keys(modFrequency).sort((a, b) => {
+    return modFrequency[b] - modFrequency[a]; // 频率高的在前
+  });
+
+  showFilterContainer();
+}
+
+function handleModFilterInput() {
+  const inputValue = modFilter.value.trim().toLowerCase();
+
+  if (inputValue === "") {
+    showAllSuggestions();
+  } else {
+    // 筛选匹配的模组 (仅基于当前页的 availableMods)
+    const filteredMods = availableMods.filter(mod =>
+      mod.toLowerCase().includes(inputValue)
+    );
+    showSuggestions(filteredMods);
+  }
+
+  // 模组筛选器的改变也应该触发一次“搜索”来更新结果和分页
+  // 这里我们直接调用 search(false) 来刷新内容，但注意它不会发起新的API请求
+  // 如果 currentFullSearchKey 没有改变（即页码、查询、模式都没变），则不会重复请求API
+  // 但是会执行 applyModFilter 重新渲染当前页的过滤结果
+  search(false);
+}
+
+function showAllSuggestions() {
+  if (availableMods.length === 0) {
+    modSuggestions.style.display = "none";
+    return;
+  }
+
+  modSuggestions.innerHTML = "";
+
+  const allOption = document.createElement("div");
+  allOption.className = "px-3 py-2 cursor-pointer suggestion-item list-group-item";
+  allOption.textContent = "显示全部模组";
+  allOption.style.cursor = "pointer";
+  allOption.addEventListener("click", () => {
+    modFilter.value = "";
+    modSuggestions.style.display = "none";
+    applyModFilter();
+  });
+  modSuggestions.appendChild(allOption);
+
+  // 显示前10个模组
+  availableMods.slice(0, 10).forEach(mod => {
+    const item = createSuggestionItem(mod);
+    modSuggestions.appendChild(item);
+  });
+
+  if (availableMods.length > 10) {
+    const moreItem = document.createElement("div");
+    moreItem.className = "px-3 py-2 text-muted small";
+    moreItem.textContent = `还有 ${availableMods.length - 10} 个模组，请输入关键词筛选...`;
+    modSuggestions.appendChild(moreItem);
+  }
+
+  modSuggestions.style.display = "block";
+}
+
+function showSuggestions(mods) {
+  modSuggestions.innerHTML = "";
+
+  if (mods.length === 0) {
+    const noResult = document.createElement("div");
+    noResult.className = "px-3 py-2 text-muted";
+    noResult.textContent = "未找到匹配的模组";
+    modSuggestions.appendChild(noResult);
+  } else {
+    mods.forEach(mod => {
+      const item = createSuggestionItem(mod);
+      modSuggestions.appendChild(item);
+    });
+  }
+
+  modSuggestions.style.display = "block";
+}
+
+function createSuggestionItem(mod) {
+  const item = document.createElement("div");
+  item.className = "px-3 py-2 cursor-pointer suggestion-item list-group-item"; // 添加 list-group-item 样式
+  item.textContent = mod;
+  item.style.cursor = "pointer";
+  item.addEventListener("click", () => {
+    modFilter.value = mod;
+    modSuggestions.style.display = "none";
+    applyModFilter();
+  });
+  return item;
+}
+
+function applyModFilter() {
+  const selectedMod = modFilter.value.trim();
+  let resultsToDisplay = currentApiResults; // 总是从当前页的原始结果开始筛选
+
+  if (selectedMod) {
+    resultsToDisplay = currentApiResults.filter(item => item.modid === selectedMod);
+  }
+
+  displayResults(resultsToDisplay, searchInput.value.trim(), searchMode.value);
+  setupPagination(totalApiMatches);
+}
+
 function displayResults(results, query, mode) {
   resultsBody.innerHTML = "";
+
+  if (results.length === 0) {
+    updateResultsUI("当前模组筛选下未找到结果。");
+    return;
+  }
 
   results.forEach((item) => {
     const curseforgeLink = item.curseforge
@@ -163,7 +344,7 @@ function setupPagination(totalItems) {
       pageLink.addEventListener("click", (e) => {
         e.preventDefault();
         currentPage = page;
-        search(false);
+        search(false); // 点击分页按钮时，重新发起 API 请求
       });
     }
     pageItem.appendChild(pageLink);
@@ -174,7 +355,7 @@ function setupPagination(totalItems) {
 
   const maxPagesToShow = 7;
   let startPage = Math.max(1, currentPage - Math.floor(maxPagesToShow / 2));
-  let endPage = Math.min(totalPages, startPage + maxPagesToShow - 1);
+  const endPage = Math.min(totalPages, startPage + maxPagesToShow - 1);
 
   if (endPage - startPage + 1 < maxPagesToShow) {
     startPage = Math.max(1, endPage - maxPagesToShow + 1);

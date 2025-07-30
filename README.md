@@ -118,7 +118,7 @@ https://api.vmct-cn.top/search?q=${query}&page=${currentPage}&mode=${mode}
 
 关于创建worker并链接D1数据库请看[官方教程](https://developers.cloudflare.com/d1/get-started/)，下方仅列出上传数据库的处理步骤：
 
-1. 下载原`.db`格式的数据库文件，并在SQLite官网下载[SQLite Tools](https://www.sqlite.org/2025/sqlite-tools-win-x64-3500200.zip)并解压。
+1. 下载原`.db`格式的数据库文件，并在SQLite官网下载[SQLite Tools](https://www.sqlite.org/2025/sqlite-tools-win-x64-3500300.zip)并解压（此处以 Windows 为例）。
 
 2. 打开sqlite3.exe（我们只需要它，其他的可以删除），并输入下面的命令转换格式：
 

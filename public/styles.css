@@ -8,6 +8,7 @@
   --border-color: #ddd; /* 边框颜色 */
   --highlight-bg: #ffeb3b; /* 高亮背景色 */
   --highlight-color: #000; /* 高亮文本色 */
+  --hover-color: #f1f1f1; /* 悬停状态背景色 */
   --footer-color: #666; /* 页脚文本颜色 */
 }
 
@@ -27,6 +28,14 @@ h1,
   color: var(--primary-color);
 }
 
+#modSuggestions {
+  background-color: var(--container-bg);
+  border-color: #ced4da;
+  display: none;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
 #searchInput {
   border-radius: 4px;
 }
@@ -42,6 +51,15 @@ h1,
 
 #searchButton:hover {
   background-color: var(--primary-hover-color);
+}
+
+.container {
+  width: 90%;
+  max-width: 1200px;
+  background-color: var(--container-bg);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  padding: 20px;
 }
 
 .changelog-entry {
@@ -81,7 +99,7 @@ h1,
 }
 
 .page-link:hover {
-  background-color: #f1f1f1;
+  background-color: var(--hover-color);
 }
 
 .page-item.active .page-link {
@@ -95,13 +113,8 @@ h1,
   opacity: 0.6;
 }
 
-.container {
-  width: 90%;
-  max-width: 1200px;
-  background-color: var(--container-bg);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-  border-radius: 8px;
-  padding: 20px;
+.suggestion-item:hover {
+  background-color: var(--hover-color);
 }
 
 footer {
@@ -127,7 +140,7 @@ th {
 }
 
 tr:hover {
-  background-color: #f1f1f1;
+  background-color: var(--hover-color);
 }
 
 /* 暗色模式 */
@@ -166,13 +179,33 @@ tr:hover {
     color: #0073d1;
   }
 
-  #searchInput {
+  #searchInput,
+  #modFilter {
     background-color: #555;
     color: var(--text-color);
     border: 1px solid #666;
   }
 
-  #searchInput::placeholder {
+  #searchInput::placeholder,
+  #modFilter::placeholder {
+    color: var(--text-color);
+  }
+
+  #searchInput:-webkit-autofill {
+    -webkit-box-shadow: 0 0 0px 100px var(--border-color) inset !important;
+    -webkit-text-fill-color: var(--text-color) !important;
+    caret-color: var(--text-color) !important;
+  }
+
+  #modFilter {
+    background-color: #555;
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+  }
+
+  #modSuggestions {
+    background-color: var(--container-bg);
+    border: 1px solid var(--border-color);
     color: var(--text-color);
   }
 
@@ -255,6 +288,19 @@ tr:hover {
     border-color: var(--secondary-color);
     box-shadow: 0 0 0 0.25rem rgba(0, 144, 254, 0.25);
   }
+
+  .suggestion-item {
+    color: var(--text-color);
+    background-color: transparent;
+  }
+
+  .suggestion-item:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+  }
+
+  .text-muted {
+    color: #aaa !important;
+  }
 }
 
 /* 移动设备适配 */
@@ -282,5 +328,9 @@ tr:hover {
   td {
     padding: 8px 6px;
     min-width: 80px;
+  }
+
+  #modSuggestions {
+    max-height: 150px !important;
   }
 }

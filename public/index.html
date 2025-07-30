@@ -24,6 +24,19 @@
                 </select>
                 <button id="searchButton" class="btn btn-primary" type="button">查询</button>
             </div>
+            <div class="mb-3" id="filterContainer" style="display: none;">
+                <label for="modFilter" class="form-label">筛选模组：</label>
+                <div class="position-relative">
+                    <input 
+                        type="text" 
+                        id="modFilter" 
+                        class="form-control" 
+                        placeholder="输入模组ID或留空显示全部..."
+                        autocomplete="off"
+                    />
+                    <div id="modSuggestions" class="position-absolute w-100 border border-top-0 rounded-bottom shadow-sm"></div>
+                </div>
+            </div>
             <div id="results">
                 <table class="table table-striped">
                     <thead>
@@ -36,7 +49,7 @@
                     </thead>
                     <tbody id="resultsBody"></tbody>
                 </table>
-                <div id="pagination" class="d-flex justify-content-center"></div>
+                <div id="pagination" class="d-flex justify-content-center" aria-label="分页"></div>
             </div>
             <footer class="text-center mt-5">
                 <p>
@@ -52,7 +65,7 @@
                     项目生成，遵循
                     <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh-hans">CC BY-NC-SA 4.0 协议</a>。
                 </p>
-                <p>最后更新于：2025-07-28 | 📜 <a href="#" id="changelogLink">更新日志</a></p>
+                <p>最后更新于：2025-07-30 | 📜 <a href="#" id="changelogLink">更新日志</a></p>
             </footer>
         </div>
         <div class="modal fade" id="changelogModal" tabindex="-1" aria-labelledby="changelogModalLabel">
