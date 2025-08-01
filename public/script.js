@@ -301,7 +301,7 @@ function displayResults(results, query, mode) {
     const mcmodSearchLink = item.modid
       ? `<a href="${API_SEARCH_MCMOD}${encodeURIComponent(item.modid)}"
                  target="_blank" rel="noopener noreferrer" title="在 MC 百科搜索 ModID" style="margin-left: 4px;">
-                 <img src="mcmod.png" alt="MC百科" width="16" height="16">
+                 <img src="mcmod.svg" alt="MC百科" width="16" height="16">
                </a>`
       : "";
 

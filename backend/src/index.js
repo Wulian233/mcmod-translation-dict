@@ -39,8 +39,9 @@ export default {
       }
 
       const searchTerm = query.trim().toLowerCase();
-      const likePattern = `${searchTerm}%`;
-      const searchColumn = mode === 'en2zh' ? 'origin_name' : 'trans_name';
+      const likePatternStart = `${searchTerm}%`;  // 开头匹配
+      const likePatternEnd = `%${searchTerm}`;    // 结尾匹配
+      const searchColumn = mode === "en2zh" ? "origin_name" : "trans_name";
 
       const cacheKey = new Request(request.url, request);
       const cachedResponse = await cache.match(cacheKey);
@@ -51,7 +52,7 @@ export default {
           WITH FilteredDict AS (
             SELECT origin_name, trans_name, modid, version, key, curseforge
             FROM dict
-            WHERE LOWER(${searchColumn}) LIKE ?
+            WHERE LOWER(${searchColumn}) LIKE ? OR LOWER(${searchColumn}) LIKE ?
           ),
           Frequencies AS (
             SELECT origin_name, trans_name, COUNT(*) AS frequency
@@ -85,14 +86,14 @@ export default {
         const countQuery = `
           SELECT COUNT(*) as total FROM (
             SELECT 1 FROM dict
-            WHERE LOWER(${searchColumn}) LIKE ?
+            WHERE LOWER(${searchColumn}) LIKE ? OR LOWER(${searchColumn}) LIKE ?
             GROUP BY origin_name, trans_name
           );
         `;
 
         const [resultsData, countResult] = await Promise.all([
-          env.DB.prepare(resultsQuery).bind(likePattern, searchTerm, offset).all(),
-          env.DB.prepare(countQuery).bind(likePattern).first()
+          env.DB.prepare(resultsQuery).bind(likePatternStart, likePatternEnd, searchTerm, offset).all(),
+          env.DB.prepare(countQuery).bind(likePatternStart, likePatternEnd).first()
         ]);
 
         const results = resultsData.results || [];
