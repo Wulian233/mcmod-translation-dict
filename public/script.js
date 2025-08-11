@@ -12,6 +12,7 @@ let changelogModal;
 
 let currentApiResults = []; // 存储当前页从API获取的原始结果
 let totalApiMatches = 0; // 存储API返回的总匹配条目数
+let allApiResults = []; // 存储所有页面的结果（用于模组筛选）
 
 const searchButton = document.getElementById("searchButton");
 const searchInput = document.getElementById("searchInput");
@@ -82,10 +83,10 @@ function search(resetPage = false) {
 
   if (resetPage) {
     currentPage = 1;
-    // 如果是新的搜索词或模式，才重置模组筛选器
-    // 否则如果只是点击分页，或者在同一个搜索词下更改模组筛选，不应重置模组筛选器
+    // 如果是新的搜索词或模式，才重置模组筛选器和所有结果缓存
     if (lastFullSearchKey.split("_")[0] !== query || lastFullSearchKey.split("_")[1] !== mode) {
       modFilter.value = "";
+      allApiResults = []; // 清空所有结果缓存
     }
   }
 
@@ -98,6 +99,12 @@ function search(resetPage = false) {
   if (query.length > 50) {
     updateResultsUI("搜索词长度不能超过50个字符");
     hideFilterContainer();
+    return;
+  }
+
+  // 如果有模组筛选且已经有所有结果缓存，则直接应用筛选
+  if (currentModFilter && allApiResults.length > 0) {
+    applyModFilter();
     return;
   }
 
@@ -136,7 +143,17 @@ function search(resetPage = false) {
       currentApiResults = data.results;
       totalApiMatches = data.total;
 
-      setupModFilter(currentApiResults);
+      // 将当前页结果添加到所有结果缓存中
+      if (currentPage === 1) {
+        allApiResults = [...data.results]; // 第一页时重置缓存
+      } else {
+        // 确保不重复添加
+        const existingIds = new Set(allApiResults.map(item => item.key));
+        const newResults = data.results.filter(item => !existingIds.has(item.key));
+        allApiResults = [...allApiResults, ...newResults];
+      }
+
+      setupModFilter(currentModFilter ? allApiResults : currentApiResults);
       applyModFilter();
 
       lastFullSearchKey = currentFullSearchKey;
@@ -165,7 +182,7 @@ function showFilterContainer() {
 }
 
 function setupModFilter(results) {
-  // 统计当前页每个模组的出现频率
+  // 统计每个模组的出现次数
   const modFrequency = {};
   results.forEach(item => {
     if (item.modid) {
@@ -190,18 +207,20 @@ function handleModFilterInput() {
   if (inputValue === "") {
     showAllSuggestions();
   } else {
-    // 筛选匹配的模组 (仅基于当前页的 availableMods)
+    // 筛选匹配的模组
     const filteredMods = availableMods.filter(mod =>
       mod.toLowerCase().includes(inputValue)
     );
     showSuggestions(filteredMods);
   }
 
-  // 模组筛选器的改变也应该触发一次“搜索”来更新结果和分页
-  // 这里我们直接调用 search(false) 来刷新内容，但注意它不会发起新的API请求
-  // 如果 currentFullSearchKey 没有改变（即页码、查询、模式都没变），则不会重复请求API
-  // 但是会执行 applyModFilter 重新渲染当前页的过滤结果
-  search(false);
+  // 重置为第一页
+  if (currentPage !== 1) {
+    currentPage = 1;
+  }
+
+  // 模组筛选器的改变应该触发一次筛选来更新结果和分页
+  applyModFilter();
 }
 
 function showAllSuggestions() {
@@ -272,14 +291,122 @@ function createSuggestionItem(mod) {
 
 function applyModFilter() {
   const selectedMod = modFilter.value.trim();
-  let resultsToDisplay = currentApiResults; // 总是从当前页的原始结果开始筛选
+  let resultsToDisplay;
 
   if (selectedMod) {
-    resultsToDisplay = currentApiResults.filter(item => item.modid === selectedMod);
+    // 如果选择了模组筛选，则需要获取所有页面的结果
+    if (allApiResults.length === 0 || allApiResults.length < totalApiMatches) {
+      // 如果还没有获取所有页面的结果，则需要获取
+      fetchAllResults(selectedMod);
+      return;
+    }
+    
+    // 从所有结果中筛选
+    resultsToDisplay = allApiResults.filter(item => item.modid === selectedMod);
+    
+    // 筛选后的结果不需要分页，或者根据筛选后的数量重新计算分页
+    displayResults(resultsToDisplay, searchInput.value.trim(), searchMode.value);
+    
+    // 如果筛选后的结果数量超过每页显示数量，则需要重新设置分页
+    if (resultsToDisplay.length > itemsPerPage) {
+      const startIndex = (currentPage - 1) * itemsPerPage;
+      const endIndex = Math.min(startIndex + itemsPerPage, resultsToDisplay.length);
+      
+      displayResults(resultsToDisplay.slice(startIndex, endIndex), searchInput.value.trim(), searchMode.value);
+      setupPagination(resultsToDisplay.length);
+    } else {
+      // 筛选后的结果不需要分页
+      setupPagination(0);
+    }
+  } else {
+    // 没有选择模组筛选，显示当前页的结果
+    resultsToDisplay = currentApiResults;
+    displayResults(resultsToDisplay, searchInput.value.trim(), searchMode.value);
+    setupPagination(totalApiMatches);
   }
+}
 
-  displayResults(resultsToDisplay, searchInput.value.trim(), searchMode.value);
-  setupPagination(totalApiMatches);
+// 获取所有页面的结果
+function fetchAllResults(selectedMod) {
+  const query = searchInput.value.trim();
+  const mode = searchMode.value;
+  const totalPages = Math.ceil(totalApiMatches / itemsPerPage);
+  
+  updateResultsUI("正在获取所有结果，请稍候...");
+  
+  // 创建一个Promise数组，用于获取所有页面的结果
+  const promises = [];
+  
+  // 如果第一页已经获取，则从第二页开始
+  for (let page = 1; page <= totalPages; page++) {
+    if (page === currentPage && allApiResults.length === 0) {
+      // 当前页已经获取过，将结果添加到allApiResults
+      allApiResults = [...currentApiResults];
+      continue;
+    }
+    
+    promises.push(
+      fetch(`${API_BASE_URL}/search?q=${encodeURIComponent(query)}&page=${page}&mode=${mode}`)
+        .then(response => {
+          if (!response.ok) throw new Error(`页面 ${page} 获取失败`);
+          return response.json();
+        })
+        .then(data => {
+          if (data?.results?.length) {
+            return data.results;
+          }
+          return [];
+        })
+    );
+  }
+  
+  // 等待所有请求完成
+  Promise.all(promises)
+    .then(results => {
+      // 合并所有结果
+      const allResults = [...allApiResults];
+      
+      // 使用Set来去重
+      const existingKeys = new Set(allResults.map(item => item.key));
+      
+      results.forEach(pageResults => {
+        pageResults.forEach(item => {
+          if (!existingKeys.has(item.key)) {
+            allResults.push(item);
+            existingKeys.add(item.key);
+          }
+        });
+      });
+      
+      allApiResults = allResults;
+      
+      // 应用模组筛选
+      const filteredResults = allApiResults.filter(item => item.modid === selectedMod);
+      
+      // 重置当前页为第一页
+      currentPage = 1;
+      
+      if (filteredResults.length === 0) {
+        updateResultsUI("当前模组筛选下未找到结果。");
+        return;
+      }
+      
+      // 如果筛选后的结果数量超过每页显示数量，则需要分页显示
+      if (filteredResults.length > itemsPerPage) {
+        displayResults(filteredResults.slice(0, itemsPerPage), query, mode);
+        setupPagination(filteredResults.length);
+      } else {
+        displayResults(filteredResults, query, mode);
+        setupPagination(0); // 不需要分页
+      }
+      
+      // 更新模组筛选器
+      setupModFilter(allApiResults);
+    })
+    .catch(error => {
+      console.error("获取所有结果失败:", error);
+      updateResultsUI("获取所有结果失败，请重试。");
+    });
 }
 
 function displayResults(results, query, mode) {
@@ -288,6 +415,15 @@ function displayResults(results, query, mode) {
   if (results.length === 0) {
     updateResultsUI("当前模组筛选下未找到结果。");
     return;
+  }
+
+  // 显示结果数量信息
+  const selectedMod = modFilter.value.trim();
+  if (selectedMod && allApiResults.length > 0) {
+    const filteredTotal = allApiResults.filter(item => item.modid === selectedMod).length;
+    const resultInfo = document.createElement("tr");
+    resultInfo.innerHTML = `<td colspan="4" class="text-muted small">已筛选模组: ${selectedMod}，共找到 ${filteredTotal} 个结果</td>`;
+    resultsBody.appendChild(resultInfo);
   }
 
   results.forEach((item) => {
@@ -325,6 +461,9 @@ function highlightQuery(text, query) {
 function setupPagination(totalItems) {
   pagination.innerHTML = "";
 
+  // 如果没有项目或只有一页，不显示分页
+  if (totalItems <= 0 || totalItems <= itemsPerPage) return;
+
   const totalPages = Math.ceil(totalItems / itemsPerPage);
   if (totalPages <= 1) return;
 
@@ -344,7 +483,17 @@ function setupPagination(totalItems) {
       pageLink.addEventListener("click", (e) => {
         e.preventDefault();
         currentPage = page;
-        search(false); // 点击分页按钮时，重新发起 API 请求
+        
+        // 如果有模组筛选且已经获取了所有结果，则直接应用筛选
+        const selectedMod = modFilter.value.trim();
+        if (selectedMod && allApiResults.length > 0) {
+          const filteredResults = allApiResults.filter(item => item.modid === selectedMod);
+          const startIndex = (page - 1) * itemsPerPage;
+          const endIndex = Math.min(startIndex + itemsPerPage, filteredResults.length);
+          displayResults(filteredResults.slice(startIndex, endIndex), searchInput.value.trim(), searchMode.value);
+        } else {
+          search(false); // 点击分页按钮时，重新发起 API 请求
+        }
       });
     }
     pageItem.appendChild(pageLink);
