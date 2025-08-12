@@ -1,0 +1,47 @@
+name: Build and Upload sql_cleaner
+
+on:
+  push:
+    paths:
+      - 'sql_cleaner/**'
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@v1
+
+      - name: Build project
+        run: cargo build --release
+        working-directory: ./sql_cleaner
+
+      - name: Upload Linux artifact
+        if: startsWith(runner.os, 'Linux')
+        uses: actions/upload-artifact@v4
+        with:
+          name: SQL-Cleaner-Linux
+          path: sql_cleaner/target/release/sql_cleaner
+
+      - name: Upload macOS artifact
+        if: startsWith(runner.os, 'macOS')
+        uses: actions/upload-artifact@v4
+        with:
+          name: SQL-Cleaner-MacOS
+          path: sql_cleaner/target/release/sql_cleaner
+
+      - name: Upload Windows artifact
+        if: startsWith(runner.os, 'Windows')
+        uses: actions/upload-artifact@v4
+        with:
+          name: SQL-Cleaner-Windows
+          path: sql_cleaner/target/release/sql_cleaner.exe

@@ -66,7 +66,7 @@ https://api.vmct-cn.top/search?q=${query}&page=${currentPage}&mode=${mode}
       "version": "1.21",
       "key": "crop.mysticalagriculture.stone",
       "curseforge": "mystical-agriculture",
-      "frequency": 81
+      "frequency": 82
     },
     {
       "trans_name": "石",
@@ -79,9 +79,10 @@ https://api.vmct-cn.top/search?q=${query}&page=${currentPage}&mode=${mode}
     }
     // ... 更多结果
   ],
-  "total": 1328,
+  "total": 6032,
   "page": 1,
-  "mode": "en2zh"
+  "mode": "en2zh",
+  "searchTime": 241
 }
 ```
 
@@ -99,6 +100,7 @@ https://api.vmct-cn.top/search?q=${query}&page=${currentPage}&mode=${mode}
   * `total`：符合搜索条件的总条目数。
   * `page`：当前查询的页码。
   * `mode`：当前搜索模式。
+  * `searchTime`：搜索耗时（毫秒）
 
 ### 前端
 
@@ -112,25 +114,23 @@ https://api.vmct-cn.top/search?q=${query}&page=${currentPage}&mode=${mode}
 
 所需环境：NodeJS
 
-本项目所用的后端数据库和API分别部署在Cloudflare的D1 SQL数据库和Worker上，
-然而D1数据库并不支持 [i18n Dict Extender](https://github.com/VM-Chinese-translate-group/i18n-Dict-Extender) 项目
-中的sqlite3 `.db`格式，所以还需要转换为`.sql`格式。
+本项目所用的后端数据库和 API 分别部署在 Cloudflare的 D1 SQL 数据库和 Worker 上，
+然而 D1 数据库并不支持 [i18n Dict Extender](https://github.com/VM-Chinese-translate-group/i18n-Dict-Extender) 项目
+中的 `.db` 格式内的部分内容，所以还需要转换为 `.sql` 格式并进行清洗。
 
 关于创建worker并链接D1数据库请看[官方教程](https://developers.cloudflare.com/d1/get-started/)，下方仅列出上传数据库的处理步骤：
 
-1. 下载原`.db`格式的数据库文件，并在SQLite官网下载[SQLite Tools](https://www.sqlite.org/2025/sqlite-tools-win-x64-3500300.zip)并解压（此处以 Windows 为例）。
+1. 下载原 `.db` 格式的数据库文件，并在 SQLite 官网下载[SQLite Tools](https://www.sqlite.org/2025/sqlite-tools-win-x64-3500400.zip)并解压（此处以 Windows 为例）。
 
-2. 打开sqlite3.exe（我们只需要它，其他的可以删除），并输入下面的命令转换格式：
+2. 在 sqlite3.exe（我们只需要它，其他的可以删除）所在位置新建终端，并输入下面的命令转换格式：
 
-```
-sqlite> .open Dict-Sqlite.db
-sqlite> .output input.sql
-sqlite> .dump
-sqlite> .exit
+```shell
+sqlite3 Dict-Sqlite.db .dump > Dict-Sqlite.sql
 ```
 
-3. 由于D1数据库的限制，我们还需要对数据库文件进行进一步的处理。
-你可以在[release](https://github.com/Wulian233/mcmod-translation-dict/releases/tag/sql_cleaner)里下载适用于你的系统的打包好的版本。
+3. 由于 D1 数据库的限制，我们还需要对数据库文件进行进一步的处理。
+你可以在[release](https://github.com/Wulian233/mcmod-translation-dict/releases/tag/sql_cleaner)里
+下载适用于你的系统的打包好的版本。
 
 > [!TIP]
 > 请把程序放在和`input.sql`一个目录下！运行结束后会自动删除`input.sql`并生成`Dict-Sqlite.sql`。
@@ -138,17 +138,34 @@ sqlite> .exit
 > 注：Linux 和 MacOS 系统记得解压后运行。此工具代码由 AI 生成，作者其实不会 Rust。
 > 它们的源代码在 [sql_cleaner](sql_cleaner/) 目录下。
 
-4. 最后在本地终端输入
+4. 在本地终端输入
 
-```cmd
+```shell
 npx wrangler d1 execute prod-d1-tutorial --remote --file=./Dict-Sqlite.sql
+```
+
+5. 在 Cloudflare 网页打开你的 D1 数据库，按照下方图片找到控制台
+
+![截图](https://youke1.picui.cn/s1/2025/08/12/689b1bd5ac843.png)
+
+复制下面的命令并粘贴到对话框，最后点击执行
+
+```sql
+CREATE VIRTUAL TABLE dict_fts USING fts5(
+  origin_name,
+  trans_name,
+  content='dict',
+  content_rowid='rowid'
+);
+INSERT INTO dict_fts(rowid, origin_name, trans_name)
+SELECT rowid, origin_name, trans_name FROM dict;
 ```
 
 ### 更新数据库方法：
 
-浏览器进入存放词典数据的CloudFlare D1数据库，并删除整个`dict`表。之后方法同上。
+浏览器进入存放词典数据的 CloudFlare D1 数据库，并删除除最后一个以外的所有表。之后方法同上。
 
-![截图](cloudflare.png)
+![截图](https://youke1.picui.cn/s1/2025/08/12/689b1e84f13f4.png)
 
 ## 版权归属
 

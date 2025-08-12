@@ -15,6 +15,7 @@ let totalApiMatches = 0; // 存储API返回的总匹配条目数
 let allApiResults = []; // 存储所有页面的结果（用于模组筛选）
 
 const searchButton = document.getElementById("searchButton");
+const searchInfo = document.getElementById("searchInfo");
 const searchInput = document.getElementById("searchInput");
 const searchMode = document.getElementById("searchMode");
 const resultsBody = document.getElementById("resultsBody");
@@ -124,6 +125,7 @@ function search(resetPage = false) {
   lastSearchTime = now;
 
   updateResultsUI("正在搜索中...");
+  searchInfo.innerHTML = ""; // 清空搜索信息
 
   fetch(`${API_BASE_URL}/search?q=${encodeURIComponent(query)}&page=${currentPage}&mode=${mode}`)
     .then((response) => {
@@ -142,6 +144,12 @@ function search(resetPage = false) {
 
       currentApiResults = data.results;
       totalApiMatches = data.total;
+      
+      // 显示搜索时间（毫秒转秒）
+      if (data.searchTime) {
+        const searchTimeInSeconds = (data.searchTime / 1000).toFixed(2);
+        searchInfo.innerHTML = `搜索耗时: ${searchTimeInSeconds} 秒`;
+      }
 
       // 将当前页结果添加到所有结果缓存中
       if (currentPage === 1) {
@@ -164,6 +172,7 @@ function search(resetPage = false) {
       hideFilterContainer();
       totalApiMatches = 0;
       setupPagination(totalApiMatches);
+      searchInfo.innerHTML = ""; // 清空搜索信息
     });
 }
 
@@ -333,6 +342,7 @@ function fetchAllResults(selectedMod) {
   const totalPages = Math.ceil(totalApiMatches / itemsPerPage);
   
   updateResultsUI("正在获取所有结果，请稍候...");
+  searchInfo.innerHTML = ""; // 清空搜索信息
   
   // 创建一个Promise数组，用于获取所有页面的结果
   const promises = [];

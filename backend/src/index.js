@@ -38,28 +38,19 @@ export default {
         });
       }
 
-      const searchTerm = query.trim().toLowerCase();
-      const likePatternStart = `${searchTerm}%`;  // 开头匹配
-      const likePatternEnd = `%${searchTerm}`;    // 结尾匹配
       const searchColumn = mode === "en2zh" ? "origin_name" : "trans_name";
+      const searchTermFts = `${searchColumn}:${query.trim()}*`;
+      const exactMatchTerm = query.trim();
 
       const cacheKey = new Request(request.url, request);
       const cachedResponse = await cache.match(cacheKey);
-      if (cachedResponse) return cachedResponse;
+      if (cachedResponse) {
+        return cachedResponse;
+      }
 
       try {
         const resultsQuery = `
-          WITH FilteredDict AS (
-            SELECT origin_name, trans_name, modid, version, key, curseforge
-            FROM dict
-            WHERE LOWER(${searchColumn}) LIKE ? OR LOWER(${searchColumn}) LIKE ?
-          ),
-          Frequencies AS (
-            SELECT origin_name, trans_name, COUNT(*) AS frequency
-            FROM FilteredDict
-            GROUP BY origin_name, trans_name
-          ),
-          RankedMatches AS (
+          WITH RankedMatches AS (
             SELECT
               d.trans_name,
               d.origin_name,
@@ -67,34 +58,49 @@ export default {
               d.version,
               d.key,
               d.curseforge,
-              f.frequency,
               CASE
-                WHEN LOWER(d.${searchColumn}) = ? THEN 3 ELSE 2
+                WHEN LOWER(d.${searchColumn}) = LOWER(?) THEN 3
+                WHEN dict_fts.rank = 0 THEN 2
+                ELSE 1
               END AS match_weight,
+              dict_fts.rank AS fts_rank,
               ROW_NUMBER() OVER (PARTITION BY d.origin_name, d.trans_name ORDER BY d.version DESC) AS rn
-            FROM FilteredDict d
-            JOIN Frequencies f ON d.origin_name = f.origin_name AND d.trans_name = f.trans_name
+            FROM dict AS d
+            JOIN dict_fts ON d.rowid = dict_fts.rowid
+            WHERE dict_fts MATCH ?
+          ),
+          Frequencies AS (
+            SELECT origin_name, trans_name, COUNT(*) AS frequency
+            FROM RankedMatches
+            GROUP BY origin_name, trans_name
           )
           SELECT
-            trans_name, origin_name, modid, version, key, curseforge, frequency
-          FROM RankedMatches
-          WHERE rn = 1
-          ORDER BY match_weight DESC, frequency DESC, origin_name
+            rm.trans_name, rm.origin_name, rm.modid, rm.version, rm.key, rm.curseforge, f.frequency
+          FROM RankedMatches AS rm
+          JOIN Frequencies AS f ON rm.origin_name = f.origin_name AND rm.trans_name = f.trans_name
+          WHERE rm.rn = 1
+          ORDER BY rm.match_weight DESC, f.frequency DESC, rm.origin_name
           LIMIT 50 OFFSET ?;
         `;
-
+        
         const countQuery = `
-          SELECT COUNT(*) as total FROM (
-            SELECT 1 FROM dict
-            WHERE LOWER(${searchColumn}) LIKE ? OR LOWER(${searchColumn}) LIKE ?
+          SELECT COUNT(*) as total
+          FROM (
+            SELECT 1 FROM dict_fts
+            WHERE dict_fts MATCH ?
             GROUP BY origin_name, trans_name
           );
         `;
 
+        const startTime = Date.now(); // 开始计时
+
         const [resultsData, countResult] = await Promise.all([
-          env.DB.prepare(resultsQuery).bind(likePatternStart, likePatternEnd, searchTerm, offset).all(),
-          env.DB.prepare(countQuery).bind(likePatternStart, likePatternEnd).first()
+          env.DB.prepare(resultsQuery).bind(exactMatchTerm, searchTermFts, offset).all(),
+          env.DB.prepare(countQuery).bind(searchTermFts).first()
         ]);
+
+        const endTime = Date.now();
+        const searchTime = endTime - startTime;
 
         const results = resultsData.results || [];
         const total = countResult ? countResult.total : 0;
@@ -105,6 +111,7 @@ export default {
           total,
           page,
           mode,
+          searchTime,
         };
 
         const response = new Response(JSON.stringify(responseData), {
