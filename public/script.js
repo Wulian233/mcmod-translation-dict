@@ -127,8 +127,13 @@ function search(resetPage = false) {
   updateResultsUI("正在搜索中...");
   searchInfo.innerHTML = ""; // 清空搜索信息
 
+  const requestStartTime = performance.now();
+
   fetch(`${API_BASE_URL}/search?q=${encodeURIComponent(query)}&page=${currentPage}&mode=${mode}`)
     .then((response) => {
+      const requestEndTime = performance.now();
+      searchInfo.innerHTML = `搜索耗时: ${(requestEndTime - requestStartTime).toFixed(0)} 毫秒`;
+
       if (!response.ok) throw new Error("网络响应错误");
       return response.json();
     })
@@ -144,12 +149,6 @@ function search(resetPage = false) {
 
       currentApiResults = data.results;
       totalApiMatches = data.total;
-      
-      // 显示搜索时间（毫秒转秒）
-      if (data.searchTime) {
-        const searchTimeInSeconds = (data.searchTime / 1000).toFixed(2);
-        searchInfo.innerHTML = `搜索耗时: ${searchTimeInSeconds} 秒`;
-      }
 
       // 将当前页结果添加到所有结果缓存中
       if (currentPage === 1) {
@@ -403,7 +402,9 @@ function fetchAllResults(selectedMod) {
       
       // 如果筛选后的结果数量超过每页显示数量，则需要分页显示
       if (filteredResults.length > itemsPerPage) {
-        displayResults(filteredResults.slice(0, itemsPerPage), query, mode);
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const endIndex = Math.min(startIndex + itemsPerPage, filteredResults.length);
+        displayResults(filteredResults.slice(startIndex, endIndex), query, mode);
         setupPagination(filteredResults.length);
       } else {
         displayResults(filteredResults, query, mode);
@@ -464,9 +465,18 @@ function displayResults(results, query, mode) {
 
 function highlightQuery(text, query) {
   if (!text || !query) return text || "";
+
+  // 转义 HTML
+  const safeText = text.replace(/[&<>"']/g, m => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+  }[m]));
+
+  // 转义正则特殊字符并大小写不敏感匹配
   const regex = new RegExp(query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi");
-  return text.replace(regex, (match) => `<span class="highlight">${match}</span>`);
+
+  return safeText.replace(regex, match => `<span class="highlight">${match}</span>`);
 }
+
 
 function setupPagination(totalItems) {
   pagination.innerHTML = "";

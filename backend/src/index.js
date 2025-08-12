@@ -92,15 +92,10 @@ export default {
           );
         `;
 
-        const startTime = Date.now(); // 开始计时
-
         const [resultsData, countResult] = await Promise.all([
           env.DB.prepare(resultsQuery).bind(exactMatchTerm, searchTermFts, offset).all(),
           env.DB.prepare(countQuery).bind(searchTermFts).first()
         ]);
-
-        const endTime = Date.now();
-        const searchTime = endTime - startTime;
 
         const results = resultsData.results || [];
         const total = countResult ? countResult.total : 0;
@@ -111,7 +106,6 @@ export default {
           total,
           page,
           mode,
-          searchTime,
         };
 
         const response = new Response(JSON.stringify(responseData), {

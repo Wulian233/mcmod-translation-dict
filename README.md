@@ -81,8 +81,7 @@ https://api.vmct-cn.top/search?q=${query}&page=${currentPage}&mode=${mode}
   ],
   "total": 6032,
   "page": 1,
-  "mode": "en2zh",
-  "searchTime": 241
+  "mode": "en2zh"
 }
 ```
 
@@ -100,7 +99,6 @@ https://api.vmct-cn.top/search?q=${query}&page=${currentPage}&mode=${mode}
   * `total`：符合搜索条件的总条目数。
   * `page`：当前查询的页码。
   * `mode`：当前搜索模式。
-  * `searchTime`：搜索耗时（毫秒）
 
 ### 前端
 
