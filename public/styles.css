@@ -23,6 +23,11 @@ a {
   color: var(--secondary-color);
 }
 
+a:hover {
+  color: var(--primary-hover-color);
+  transition: color 0.3s ease;
+}
+
 h1,
 .changelog-entry h6 {
   color: var(--primary-color);
@@ -131,9 +136,6 @@ td {
 
 th {
   white-space: nowrap;
-}
-
-th {
   background-color: #f8f8f8;
   font-weight: 600;
   color: var(--text-color);
@@ -230,7 +232,7 @@ tr:hover {
 
   .table {
     --bs-table-bg: var(--container-bg);
-    --bs-table-color: #fff;
+    --bs-table-color: #ddd;
     --bs-table-border-color: var(--border-color);
     --bs-table-striped-bg: rgba(255, 255, 255, 0.05);
     --bs-table-hover-bg: rgba(255, 255, 255, 0.1);
