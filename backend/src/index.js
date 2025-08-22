@@ -39,7 +39,7 @@ export default {
       }
 
       const searchColumn = mode === "en2zh" ? "origin_name" : "trans_name";
-      const searchTermFts = `${searchColumn}:${query.trim()}*`;
+      const searchTermFts = `${searchColumn}:"${query.trim()}*"`;
       const exactMatchTerm = query.trim();
 
       const cacheKey = new Request(request.url, request);

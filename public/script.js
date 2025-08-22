@@ -13,24 +13,26 @@ let changelogModal;
 let currentApiResults = []; // 存储当前页从API获取的原始结果
 let totalApiMatches = 0; // 存储API返回的总匹配条目数
 let allApiResults = []; // 存储所有页面的结果（用于模组筛选）
-
-const searchButton = document.getElementById("searchButton");
-const searchInfo = document.getElementById("searchInfo");
-const searchInput = document.getElementById("searchInput");
-const searchMode = document.getElementById("searchMode");
-const resultsBody = document.getElementById("resultsBody");
-const pagination = document.getElementById("pagination");
-const changelogLink = document.getElementById("changelogLink");
-const changelogBody = document.getElementById("changelogBody");
-const modFilter = document.getElementById("modFilter");
-const filterContainer = document.getElementById("filterContainer");
-const modSuggestions = document.getElementById("modSuggestions");
 let availableMods = []; // 存储当前页可用的模组列表
+
+const $ = id => document.getElementById(id);
+
+const searchButton = $("searchButton");
+const searchInfo = $("searchInfo");
+const searchInput = $("searchInput");
+const searchMode = $("searchMode");
+const resultsBody = $("resultsBody");
+const pagination = $("pagination");
+const changelogLink = $("changelogLink");
+const changelogBody = $("changelogBody");
+const modFilter = $("modFilter");
+const filterContainer = $("filterContainer");
+const modSuggestions = $("modSuggestions");
 
 document.addEventListener("DOMContentLoaded", initApp);
 
 function initApp() {
-  changelogModal = new bootstrap.Modal(document.getElementById("changelogModal"));
+  changelogModal = new bootstrap.Modal($("changelogModal"));
 
   bindSearchEvents();
   bindChangelogEvents();
@@ -38,18 +40,12 @@ function initApp() {
 
 function bindSearchEvents() {
   searchButton.addEventListener("click", () => search(true));
-  searchInput.addEventListener("keypress", (e) => {
-    if (e.key === "Enter") {
-      search(true);
-    }
-  });
+  searchInput.addEventListener("keypress", e => e.key === "Enter" && search(true));
 
   modFilter.addEventListener("input", handleModFilterInput);
   modFilter.addEventListener("blur", () => {
     // 延迟隐藏建议，以便点击建议项
-    setTimeout(() => {
-      modSuggestions.style.display = "none";
-    }, 200);
+    setTimeout(() => modSuggestions.style.display = "none", 200);
   });
   modFilter.addEventListener("focus", () => {
     if (availableMods.length > 0 && modFilter.value.length === 0) {
@@ -59,7 +55,7 @@ function bindSearchEvents() {
 }
 
 function bindChangelogEvents() {
-  changelogLink.addEventListener("click", async(e) => {
+  changelogLink.addEventListener("click", async e => {
     e.preventDefault();
     if (!changelogFetched) {
       try {
@@ -68,8 +64,7 @@ function bindChangelogEvents() {
         changelogFetched = true;
       } catch {
         changelogBody.innerHTML = "<p>❌ 无法加载更新日志，开发时本地预览请运行 npm run dev。</p>";
-        changelogModal.show();
-        return;
+        return changelogModal.show();
       }
     }
     populateChangelog();
@@ -286,7 +281,7 @@ function showSuggestions(mods) {
 
 function createSuggestionItem(mod) {
   const item = document.createElement("div");
-  item.className = "px-3 py-2 cursor-pointer suggestion-item list-group-item"; // 添加 list-group-item 样式
+  item.className = "px-3 py-2 cursor-pointer suggestion-item list-group-item";
   item.textContent = mod;
   item.style.cursor = "pointer";
   item.addEventListener("click", () => {
@@ -335,89 +330,67 @@ function applyModFilter() {
 }
 
 // 获取所有页面的结果
-function fetchAllResults(selectedMod) {
+async function fetchAllResults(selectedMod) {
   const query = searchInput.value.trim();
   const mode = searchMode.value;
   const totalPages = Math.ceil(totalApiMatches / itemsPerPage);
-  
+
   updateResultsUI("正在获取所有结果，请稍候...");
-  searchInfo.innerHTML = ""; // 清空搜索信息
-  
-  // 创建一个Promise数组，用于获取所有页面的结果
-  const promises = [];
-  
-  // 如果第一页已经获取，则从第二页开始
-  for (let page = 1; page <= totalPages; page++) {
-    if (page === currentPage && allApiResults.length === 0) {
-      // 当前页已经获取过，将结果添加到allApiResults
-      allApiResults = [...currentApiResults];
-      continue;
-    }
-    
-    promises.push(
-      fetch(`${API_BASE_URL}/search?q=${encodeURIComponent(query)}&page=${page}&mode=${mode}`)
-        .then(response => {
-          if (!response.ok) throw new Error(`页面 ${page} 获取失败`);
-          return response.json();
-        })
-        .then(data => {
-          if (data?.results?.length) {
-            return data.results;
-          }
-          return [];
-        })
-    );
-  }
-  
-  // 等待所有请求完成
-  Promise.all(promises)
-    .then(results => {
-      // 合并所有结果
-      const allResults = [...allApiResults];
-      
-      // 使用Set来去重
-      const existingKeys = new Set(allResults.map(item => item.key));
-      
-      results.forEach(pageResults => {
-        pageResults.forEach(item => {
-          if (!existingKeys.has(item.key)) {
-            allResults.push(item);
-            existingKeys.add(item.key);
-          }
-        });
-      });
-      
-      allApiResults = allResults;
-      
-      // 应用模组筛选
-      const filteredResults = allApiResults.filter(item => item.modid === selectedMod);
-      
-      // 重置当前页为第一页
-      currentPage = 1;
-      
-      if (filteredResults.length === 0) {
-        updateResultsUI("当前模组筛选下未找到结果。");
-        return;
+  searchInfo.innerHTML = "";
+
+  try {
+    // 已经有的第一页数据
+    const allResults = [...(currentPage === 1 && currentApiResults.length ? currentApiResults : [])];
+
+    // 拉取其他页
+    const promises = Array.from({ length: totalPages }, (_, i) => i + 1)
+      .filter(page => !(page === currentPage && currentApiResults.length))
+      .map(page =>
+        fetch(`${API_BASE_URL}/search?q=${encodeURIComponent(query)}&page=${page}&mode=${mode}`)
+          .then(res => {
+            if (!res.ok) throw new Error(`页面 ${page} 获取失败`);
+            return res.json();
+          })
+          .then(data => data?.results ?? [])
+      );
+
+    const results = (await Promise.all(promises)).flat();
+
+    // 去重
+    const existingKeys = new Set(allResults.map(r => r.key));
+    results.forEach(item => {
+      if (!existingKeys.has(item.key)) {
+        allResults.push(item);
+        existingKeys.add(item.key);
       }
-      
-      // 如果筛选后的结果数量超过每页显示数量，则需要分页显示
-      if (filteredResults.length > itemsPerPage) {
-        const startIndex = (currentPage - 1) * itemsPerPage;
-        const endIndex = Math.min(startIndex + itemsPerPage, filteredResults.length);
-        displayResults(filteredResults.slice(startIndex, endIndex), query, mode);
-        setupPagination(filteredResults.length);
-      } else {
-        displayResults(filteredResults, query, mode);
-        setupPagination(0); // 不需要分页
-      }
-      
-      // 更新模组筛选器
-      setupModFilter(allApiResults);
-    })
-    .catch(error => {
-      console.error("获取所有结果失败:", error);
-      updateResultsUI("获取所有结果失败，请重试。");
     });
+
+    allApiResults = allResults;
+
+    // 应用模组筛选
+    const filtered = allApiResults.filter(r => r.modid === selectedMod);
+    currentPage = 1;
+
+    if (!filtered.length) {
+      updateResultsUI("当前模组筛选下未找到结果。");
+      return;
+    }
+
+    // 分页显示
+    const showPage = (page = 1) => {
+      const start = (page - 1) * itemsPerPage;
+      const end = start + itemsPerPage;
+      displayResults(filtered.slice(start, end), query, mode);
+      setupPagination(filtered.length > itemsPerPage ? filtered.length : 0);
+    };
+
+    showPage(1);
+    setupModFilter(allApiResults);
+
+  } catch (err) {
+    console.error("获取所有结果失败:", err);
+    updateResultsUI("获取所有结果失败，请重试。");
+  }
 }
 
 function displayResults(results, query, mode) {
