@@ -63,26 +63,36 @@ export default {
                 WHEN dict_fts.rank = 0 THEN 2
                 ELSE 1
               END AS match_weight,
-              dict_fts.rank AS fts_rank,
-              ROW_NUMBER() OVER (PARTITION BY d.origin_name, d.trans_name ORDER BY d.version DESC) AS rn
+              dict_fts.rank AS fts_rank
             FROM dict AS d
             JOIN dict_fts ON d.rowid = dict_fts.rowid
             WHERE dict_fts MATCH ?
           ),
-          Frequencies AS (
-            SELECT origin_name, trans_name, COUNT(*) AS frequency
+          AggregatedMods AS (
+            SELECT
+                trans_name,
+                origin_name,
+                modid,
+                MIN(match_weight) AS min_match_weight_mod,
+                GROUP_CONCAT(version) AS versions,
+                GROUP_CONCAT("key") AS keys,
+                GROUP_CONCAT(curseforge) AS curseforges
             FROM RankedMatches
-            GROUP BY origin_name, trans_name
+            GROUP BY trans_name, origin_name, modid
           )
           SELECT
-            rm.trans_name, rm.origin_name, rm.modid, rm.version, rm.key, rm.curseforge, f.frequency
-          FROM RankedMatches AS rm
-          JOIN Frequencies AS f ON rm.origin_name = f.origin_name AND rm.trans_name = f.trans_name
-          WHERE rm.rn = 1
-          ORDER BY rm.match_weight DESC, f.frequency DESC, rm.origin_name
+            am.trans_name,
+            am.origin_name,
+            GROUP_CONCAT(am.modid || " (" || am.versions || ")", ", ") AS all_mods,
+            GROUP_CONCAT(am.keys) AS all_keys,
+            GROUP_CONCAT(am.curseforges) AS all_curseforges,
+            COUNT(*) AS frequency
+          FROM AggregatedMods AS am
+          GROUP BY am.trans_name, am.origin_name
+          ORDER BY MIN(am.min_match_weight_mod) DESC, COUNT(*) DESC, am.origin_name
           LIMIT 50 OFFSET ?;
         `;
-        
+
         const countQuery = `
           SELECT COUNT(*) as total
           FROM (

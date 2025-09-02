@@ -401,7 +401,6 @@ function displayResults(results, query, mode) {
     return;
   }
 
-  // 显示结果数量信息
   const selectedMod = modFilter.value.trim();
   if (selectedMod && allApiResults.length > 0) {
     const filteredTotal = allApiResults.filter(item => item.modid === selectedMod).length;
@@ -411,28 +410,90 @@ function displayResults(results, query, mode) {
   }
 
   results.forEach((item) => {
-    const curseforgeLink = item.curseforge
-      ? `<a href="https://www.curseforge.com/minecraft/mc-mods/${item.curseforge}"
-                 target="_blank" rel="noopener noreferrer" title="在 CurseForge 查看" style="margin-left: 4px;">
-                 <img src="curseforge.svg" alt="CurseForge" width="16" height="16">
-               </a>`
-      : "";
+    const allModsString = item.all_mods || "未知模组 (N/A)";
+    const allKeysString = item.all_keys || "";
+    const allCurseforgesString = item.all_curseforges || "";
 
-    const mcmodSearchLink = item.modid
-      ? `<a href="${API_SEARCH_MCMOD}${encodeURIComponent(item.modid)}"
-                 target="_blank" rel="noopener noreferrer" title="在 MC 百科搜索 ModID" style="margin-left: 4px;">
-                 <img src="mcmod.svg" alt="MC百科" width="16" height="16">
-               </a>`
-      : "";
+    const modParts = allModsString.split(", ");
+    const modKeys = allKeysString.split(",");
+    const curseforgeIds = allCurseforgesString.split(",");
 
+    let modLinksHtml = "";
+    
+    // 过滤掉空字符串，确保 modParts 的长度是准确的
+    const filteredModParts = modParts.filter(part => part.trim() !== "");
+
+    const allModItems = filteredModParts.map((part, index) => {
+      const match = part.match(/(.*) \((.*)\)/);
+      const modid = match ? match[1] : part;
+      const version = match ? match[2] : "N/A";
+
+      const modKey = modKeys[index] || modid;  // 修复：正确使用对应的 mod key
+      const curseforge = curseforgeIds[index] || "";
+
+      const curseforgeLink = curseforge
+        ? `<a href="https://www.curseforge.com/minecraft/mc-mods/${curseforge}"
+              target="_blank" rel="noopener noreferrer" title="在 CurseForge 查看" style="margin-left: 4px;">
+              <img src="curseforge.svg" alt="CurseForge" width="16" height="16">
+            </a>`
+        : "";
+
+      const mcmodSearchLink = modid
+        ? `<a href="${API_SEARCH_MCMOD}${encodeURIComponent(modid)}"
+              target="_blank" rel="noopener noreferrer" title="在 MC 百科搜索 ModID" style="margin-left: 4px;">
+              <img src="mcmod.svg" alt="MC百科" width="16" height="16">
+            </a>`
+        : "";
+
+      return `<span title="${modKey}">${modid} (${version}) ${curseforgeLink} ${mcmodSearchLink}</span>`;
+    });
+
+
+    const totalMods = allModItems.length;
+
+    if (totalMods > 1) {
+      modLinksHtml = `
+        <div>
+          ${allModItems[0]}
+          <span class="expand-btn text-primary" style="cursor: pointer; margin-left: 8px;" data-total="${totalMods}">
+            ...（展开 ${totalMods - 1} 个）
+          </span>
+        </div>
+        <div class="expandable-content mt-2" style="display: none;">
+          ${allModItems.slice(1).join("<br>")}
+        </div>
+      `;
+    } else {
+      modLinksHtml = allModItems[0] || "无";
+    }
+    
     const row = document.createElement("tr");
     row.innerHTML = `
-        <td>${highlightQuery(mode === "en2zh" ? item.trans_name : item.origin_name, query)}</td>
-        <td>${highlightQuery(mode === "en2zh" ? item.origin_name : item.trans_name, query)}</td>
-        <td title="${item.key || ""}">${item.modid || "未知模组"} (${item.version || "N/A"}) ${curseforgeLink} ${mcmodSearchLink}</td>
-        <td>${item.frequency || 0}</td>
-      `;
+      <td>${highlightQuery(mode === "en2zh" ? item.trans_name : item.origin_name, query)}</td>
+      <td>${highlightQuery(mode === "en2zh" ? item.origin_name : item.trans_name, query)}</td>
+      <td style="max-width: 140px;">${modLinksHtml}</td>
+      <td>${item.frequency || 0}</td>
+    `;
     resultsBody.appendChild(row);
+  });
+
+  const expandableButtons = resultsBody.querySelectorAll(".expand-btn");
+  expandableButtons.forEach(button => {
+    button.addEventListener("click", (e) => {
+      const parentDiv = e.target.closest("div");
+      const contentDiv = parentDiv.nextElementSibling;
+      const isExpanded = contentDiv.style.display === "block";
+      
+      const totalModsToExpand = e.target.getAttribute("data-total") - 1;
+
+      if (isExpanded) {
+        contentDiv.style.display = "none";
+        e.target.innerHTML = `...（展开 ${totalModsToExpand} 个）`;
+      } else {
+        contentDiv.style.display = "block";
+        e.target.innerHTML = "收起";
+      }
+    });
   });
 }
 
