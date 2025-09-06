@@ -1,5 +1,16 @@
 [
   {
+    "version": "v2.3.0 重要更新",
+    "date": "2025-09-06",
+    "changes": [
+      "✨ 新增：进阶搜索逻辑 by@SlimeSB, Wulian233",
+      "使用 - 排除特定单词，例如：Save -as（排除包含 as 的结果）",
+      "使用引号 \"\" 搜索准确单词组合，例如：\"Save as\"",
+      "使用星号 * 匹配结尾不同的单词，例如：any* 可匹配 any、anyway、anything",
+      "使用加号 + 匹配结尾必须不同的单词，例如：any+ 可匹配 anyway、anything、anywhere（不含 any）"
+    ]
+  },
+  {
     "version": "v2.2.0",
     "date": "2025-09-02",
     "changes": [

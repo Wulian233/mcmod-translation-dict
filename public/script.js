@@ -497,20 +497,64 @@ function displayResults(results, query, mode) {
   });
 }
 
-function highlightQuery(text, query) {
-  if (!text || !query) return text || "";
+function parseQuery(rawQuery) {
+  const tokens = [];
+  const regex = /"([^"]+)"|(\S+)/g;
+  let match;
 
-  // 转义 HTML
+  while ((match = regex.exec(rawQuery)) !== null) {
+    if (match[1]) {
+      // 引号里的完整短语
+      tokens.push({ type: "phrase", value: match[1] });
+    } else if (match[2]) {
+      const token = match[2];
+      if (token.startsWith("-")) {
+        tokens.push({ type: "exclude", value: token.slice(1) });
+      } else if (token.endsWith("*")) {
+        tokens.push({ type: "prefix", value: token.slice(0, -1) });
+      } else if (token.endsWith("+")) {
+        tokens.push({ type: "expand", value: token.slice(0, -1) });
+      } else {
+        tokens.push({ type: "word", value: token });
+      }
+    }
+  }
+  return tokens;
+}
+
+
+function highlightQuery(text, rawQuery) {
+  if (!text || !rawQuery) return text || "";
+
+  const tokens = parseQuery(rawQuery);
   const safeText = text.replace(/[&<>"']/g, m => ({
     "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
   }[m]));
 
-  // 转义正则特殊字符并大小写不敏感匹配
-  const regex = new RegExp(query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi");
+  for (const t of tokens.filter(t => t.type === "exclude")) {
+    if (safeText.toLowerCase().includes(t.value.toLowerCase())) {
+      return safeText; 
+    }
+  }
 
-  return safeText.replace(regex, match => `<span class="highlight">${match}</span>`);
+  const patterns = tokens
+    .filter(t => t.type !== "exclude")
+    .map(t => {
+      if (t.type === "phrase") return escapeRegex(t.value);
+      if (t.type === "prefix") return escapeRegex(t.value) + "\\w*";
+      if (t.type === "expand") return escapeRegex(t.value) + "\\w+";
+      return escapeRegex(t.value);
+    });
+
+  if (patterns.length === 0) return safeText;
+
+  const regex = new RegExp("(" + patterns.join("|") + ")", "gi");
+  return safeText.replace(regex, m => `<span class="highlight">${m}</span>`);
 }
 
+function escapeRegex(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
 
 function setupPagination(totalItems) {
   pagination.innerHTML = "";

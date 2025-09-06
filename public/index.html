@@ -24,6 +24,15 @@
                 </select>
                 <button id="searchButton" class="btn btn-primary" type="button">查询</button>
             </div>
+            <div class="mb-2 text-muted" id="searchAdvancedInfo" style="font-size: 0.95em;">
+                <strong>进阶搜索语法：</strong><br>
+                <ul style="margin-bottom:0; padding-left: 1.2em;">
+                    <li>使用 <code>-</code> 排除特定单词，例如：<code>Save -as</code>（排除包含 as 的结果）</li>
+                    <li>使用引号 <code>""</code> 搜索准确单词组合，例如：<code>"Save as"</code></li>
+                    <li>使用星号 <code>*</code> 匹配结尾不同的单词，例如：<code>any*</code> 可匹配 any、anyway、anything</li>
+                    <li>使用加号 <code>+</code> 匹配结尾必须不同的单词，例如：<code>any+</code> 可匹配 anyway、anything、anywhere（不含 any）</li>
+                </ul>
+            </div>
             <div class="mb-3" id="filterContainer" style="display: none;">
                 <label for="modFilter" class="form-label">筛选模组：</label>
                 <div class="position-relative">
@@ -67,7 +76,7 @@
                     项目生成，遵循
                     <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh-hans">CC BY-NC-SA 4.0 协议</a>。
                 </p>
-                <p>最后更新于：2025-09-02 | 📜 <a href="#" id="changelogLink">更新日志</a></p>
+                <p>最后更新于：2025-09-06 | 📜 <a href="#" id="changelogLink">更新日志</a></p>
             </footer>
         </div>
         <div class="modal fade" id="changelogModal" tabindex="-1" aria-labelledby="changelogModalLabel">

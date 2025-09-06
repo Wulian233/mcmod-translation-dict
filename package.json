@@ -9,9 +9,9 @@
         "lint": "eslint ."
     },
     "devDependencies": {
-        "eslint": "^9.34.0",
+        "eslint": "^9.35.0",
         "globals": "^16.3.0",
-        "taze": "^19.4.0",
-        "vercel": "^46.1.1"
+        "taze": "^19.5.0",
+        "vercel": "^47.0.5"
     }
 }

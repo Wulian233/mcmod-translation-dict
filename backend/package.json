@@ -7,9 +7,9 @@
         "upgrade-deps": "taze patch -I"
     },
     "devDependencies": {
-        "@cloudflare/vitest-pool-workers": "^0.8.68",
-        "taze": "^19.4.0",
+        "@cloudflare/vitest-pool-workers": "^0.8.70",
+        "taze": "^19.5.0",
         "vitest": "^3.2.4",
-        "wrangler": "^4.33.1"
+        "wrangler": "^4.34.0"
     }
 }
