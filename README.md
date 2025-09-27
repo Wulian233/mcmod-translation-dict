@@ -123,7 +123,7 @@ https://api.vmct-cn.top/search?q=${query}&page=${currentPage}&mode=${mode}
 2. 在 sqlite3.exe（我们只需要它，其他的可以删除）所在位置新建终端，并输入下面的命令转换格式：
 
 ```shell
-sqlite3 Dict-Sqlite.db .dump > Dict-Sqlite.sql
+sqlite3 Dict-Sqlite.db .dump > input.sql
 ```
 
 3. 由于 D1 数据库的限制，我们还需要对数据库文件进行进一步的处理。
@@ -131,7 +131,7 @@ sqlite3 Dict-Sqlite.db .dump > Dict-Sqlite.sql
 下载适用于你的系统的打包好的版本。
 
 > [!TIP]
-> 请把程序放在和`input.sql`一个目录下！运行结束后会自动删除`input.sql`并生成`Dict-Sqlite.sql`。
+> 尽量把程序放在和 `input.sql` 一个目录下，运行结束后会自动删除原文件并生成 `Dict-Sqlite.sql` 。
 >
 > 注：Linux 和 MacOS 系统记得解压后运行。此工具代码由 AI 生成，作者其实不会 Rust。
 > 它们的源代码在 [sql_cleaner](sql_cleaner/) 目录下。
@@ -142,11 +142,9 @@ sqlite3 Dict-Sqlite.db .dump > Dict-Sqlite.sql
 npx wrangler d1 execute prod-d1-tutorial --remote --file=./Dict-Sqlite.sql
 ```
 
-5. 在 Cloudflare 网页打开你的 D1 数据库，按照下方图片找到控制台
+其中，请把 `prod-d1-tutorial` 替换为自己的 D1 数据库名称，`./Dict-Sqlite.sql` 替换为自己的 SQL 文件路径。
 
-![截图](https://youke1.picui.cn/s1/2025/08/12/689b1bd5ac843.png)
-
-复制下面的命令并粘贴到对话框，最后点击执行
+5. 在 Cloudflare 网页打开你的 D1 数据库并进入控制台。复制下面的命令并粘贴到对话框，最后点击执行
 
 ```sql
 CREATE VIRTUAL TABLE dict_fts USING fts5(
@@ -162,8 +160,6 @@ SELECT rowid, origin_name, trans_name FROM dict;
 ### 更新数据库方法：
 
 浏览器进入存放词典数据的 CloudFlare D1 数据库，并删除除最后一个以外的所有表。之后方法同上。
-
-![截图](https://youke1.picui.cn/s1/2025/08/12/689b1e84f13f4.png)
 
 ## 版权归属
 

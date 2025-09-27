@@ -16,32 +16,28 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Build project
+      - name: Install UPX on Windows
+        if: runner.os == 'Windows'
+        run: choco install upx
+        shell: powershell
+
+      - name: Build
         run: cargo build --release
         working-directory: ./sql_cleaner
 
-      - name: Upload Linux artifact
-        if: startsWith(runner.os, 'Linux')
-        uses: actions/upload-artifact@v4
-        with:
-          name: SQL-Cleaner-Linux
-          path: sql_cleaner/target/release/sql_cleaner
+      - name: Compress exe with UPX
+        if: runner.os == 'Windows'
+        run: upx --best --lzma sql_cleaner/target/release/SQL-Cleaner.exe
 
-      - name: Upload macOS artifact
-        if: startsWith(runner.os, 'macOS')
+      - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: SQL-Cleaner-MacOS
-          path: sql_cleaner/target/release/sql_cleaner
-
-      - name: Upload Windows artifact
-        if: startsWith(runner.os, 'Windows')
-        uses: actions/upload-artifact@v4
-        with:
-          name: SQL-Cleaner-Windows
-          path: sql_cleaner/target/release/sql_cleaner.exe
+          name: SQL-Cleaner-${{ runner.os }}
+          path: |
+            ${{ runner.os != 'Windows' && 'sql_cleaner/target/release/SQL-Cleaner' || '' }}
+            ${{ runner.os == 'Windows' && 'sql_cleaner/target/release/SQL-Cleaner.exe' || '' }}
