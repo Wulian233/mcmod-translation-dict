@@ -1,7 +1,7 @@
 {
     "name": "mcmod-translation-dict",
     "description": "MC模组翻译参考词典",
-    "main": "frontend/index.html",
+    "main": "public/index.html",
     "type": "module",
     "scripts": {
         "dev": "vercel dev",
@@ -9,9 +9,9 @@
         "lint": "eslint ."
     },
     "devDependencies": {
-        "eslint": "^9.36.0",
-        "globals": "^16.4.0",
-        "taze": "^19.7.0",
-        "vercel": "^48.1.6"
+        "eslint": "^9.39.1",
+        "globals": "^16.5.0",
+        "taze": "^19.9.0",
+        "vercel": "^48.9.0"
     }
 }

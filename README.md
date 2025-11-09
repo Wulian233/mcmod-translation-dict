@@ -1,5 +1,5 @@
 <div align="center">
-<img height="150" src="public/favicon.ico"/>
+  <img height="150" src="public/favicon.ico"/>
 </div>
 
 # MC模组翻译参考词典
@@ -102,23 +102,30 @@ https://api.vmct-cn.top/search?q=${query}&page=${currentPage}&mode=${mode}
 
 ### 前端
 
-前端为纯 html、js、css 内容，本项目将其托管在了 Vercel 上并连接了 Github 仓库，仓库推送更新自动同步项目页面。
+所需环境：NodeJS，请使用下面的命令安装依赖并启动本地预览：
 
-在部署自己的项目时，请记得将 `public/script.js` 里的第三行 `API_BASE_URL` 替换为你部署的 API 地址。
+```bash
+npm install
+npm run dev
+```
+
+本项目将其托管在了 Vercel 上并连接了 Github 仓库，仓库推送更新自动同步项目页面。
+
+在部署自己的项目时，请记得将 `public\scripts\config.js` 里的第三行 `API_BASE_URL` 替换为你部署的 API 地址。
 
 另外还在前端做了速率限制（可配置时间），每秒最多搜索一次。
 
 ### 后端
 
-所需环境：NodeJS
+所需环境：NodeJS + Cloudflare Worker + D1 数据库
 
-本项目所用的后端数据库和 API 分别部署在 Cloudflare的 D1 SQL 数据库和 Worker 上，
+本项目所用的后端数据库和 API 分别部署在 Cloudflare 的 D1 SQL 数据库和 Worker 上，
 然而 D1 数据库并不支持 [i18n Dict Extender](https://github.com/VM-Chinese-translate-group/i18n-Dict-Extender) 项目
 中的 `.db` 格式内的部分内容，所以还需要转换为 `.sql` 格式并进行清洗。
 
-关于创建worker并链接D1数据库请看[官方教程](https://developers.cloudflare.com/d1/get-started/)，下方仅列出上传数据库的处理步骤：
+关于创建 Worker 并链接 D1 数据库请看[官方教程](https://developers.cloudflare.com/d1/get-started/)，下方仅列出上传数据库的处理步骤：
 
-1. 下载原 `.db` 格式的数据库文件，并在 SQLite 官网下载[SQLite Tools](https://www.sqlite.org/2025/sqlite-tools-win-x64-3500400.zip)并解压（此处以 Windows 为例）。
+1. 下载原 `.db` 格式的数据库文件，并在 SQLite 官网下载[SQLite Tools](https://www.sqlite.org/2025/sqlite-tools-win-x64-3510000.zip)并解压（此处以 Windows 为例）。
 
 2. 在 sqlite3.exe（我们只需要它，其他的可以删除）所在位置新建终端，并输入下面的命令转换格式：
 

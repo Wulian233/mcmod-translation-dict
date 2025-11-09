@@ -1,4 +1,4 @@
-name: Build and Upload sql_cleaner
+name: Build and Upload SQL-Cleaner
 
 on:
   push:
@@ -35,7 +35,7 @@ jobs:
         run: upx --best --lzma sql_cleaner/target/release/SQL-Cleaner.exe
 
       - name: Upload Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: SQL-Cleaner-${{ runner.os }}
           path: |
