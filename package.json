@@ -6,8 +6,7 @@
     "scripts": {
         "dev": "vite",
         "build": "vite build",
-        "upgrade-deps": "taze patch -I",
-        "lint-fix": "prettier --write ."
+        "upgrade-deps": "taze patch -I"
     },
     "dependencies": {
         "bootstrap": "^5.3.8",
@@ -15,7 +14,6 @@
     },
     "devDependencies": {
         "@vitejs/plugin-vue": "^6.0.1",
-        "prettier": "^3.6.2",
         "taze": "^19.9.0",
         "vite": "^7.2.2"
     }

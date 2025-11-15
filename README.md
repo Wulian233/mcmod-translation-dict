@@ -104,7 +104,8 @@ https://api.vmct-cn.top/search?q=${query}&page=${currentPage}&mode=${mode}
 
 所需环境：NodeJS
 
-项目使用 Vite 作为本地开发服务器与构建工具。请使用下面的命令安装依赖并启动本地开发服务器：
+本项目前端网页使用 Vue + JS 编写，并使用 Vite 作为本地开发服务器与构建工具。
+请使用下面的命令安装依赖并启动本地开发服务器：
 
 ```bash
 npm install
@@ -113,7 +114,7 @@ npm run dev
 
 本项目将其托管在了 Vercel 上并连接了 Github 仓库，仓库推送更新自动同步项目页面。
 
-在部署自己的项目时，请记得将 `frontend\scripts\config.js` 里的第三行 `API_BASE_URL` 替换为你部署的 API 地址。
+在部署自己的项目时，请记得将 `frontend\store.js` 里的第五行 `API_BASE_URL` 替换为你部署的 API 地址。
 
 另外还在前端做了速率限制（可配置时间），每秒最多搜索一次。
 

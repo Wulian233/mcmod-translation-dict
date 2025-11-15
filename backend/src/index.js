@@ -3,20 +3,21 @@ export default {
     const url = new URL(request.url);
     const { pathname: path, searchParams } = url;
 
-    const corsHeaders = {
+    const headers = {
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Methods": "GET, OPTIONS",
       "Access-Control-Allow-Headers": "Content-Type",
+      "X-Content-Type-Options": "nosniff",
     };
 
     const jsonResponse = (data, status = 200) =>
       new Response(JSON.stringify(data), {
         status,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...headers, "Content-Type": "application/json" },
       });
 
     if (request.method === "OPTIONS") {
-      return new Response(null, { headers: corsHeaders });
+      return new Response(null, { headers: headers });
     }
 
     const cache = caches.default;
@@ -54,7 +55,7 @@ export default {
           } else if (/[\u4e00-\u9fa5]/.test(word)) {
             fts.push(`(${column}:"${word}" OR ${column}:${word}*)`);
           } else {
-            terms.push(`${column}:${word}`);
+            terms.push(`${column}:"${word}"`);
           }
         }
       }
@@ -148,6 +149,6 @@ export default {
       }
     }
 
-    return new Response("Not Found", { status: 404, headers: corsHeaders });
+    return new Response("Not Found", { status: 404, headers: headers });
   },
 };

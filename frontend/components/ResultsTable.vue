@@ -109,7 +109,7 @@ onMounted(() => {
     </tbody>
   </table>
 
-  <div id="pagination" class="d-flex justify-content-center" aria-label="分页">
+  <div id="pagination" class="d-flex justify-content-center" role="navigation" aria-label="分页">
     <ul class="pagination" v-if="totalPages > 1 && totalItemsForPagination > 0">
       <li class="page-item" :class="{ disabled: store.currentPage === 1 }">
         <a class="page-link" href="#" @click.prevent="handlePageChange(1)">&laquo;</a>
