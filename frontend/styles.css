@@ -6,7 +6,7 @@
   --background-color: #f8f9fa; /* 默认背景颜色 */
   --container-bg: #fff; /* 容器背景颜色 */
   --border-color: #ddd; /* 边框颜色 */
-  --highlight-bg: #ffeb3b; /* 高亮背景色 */
+  --highlight-bg: #ffc107; /* 高亮背景色 */
   --highlight-color: #000; /* 高亮文本色 */
   --hover-color: #f1f1f1; /* 悬停状态背景色 */
   --footer-color: #666; /* 页脚文本颜色 */
@@ -84,6 +84,8 @@ h1,
   background-color: var(--highlight-bg);
   font-weight: bold;
   color: var(--highlight-color);
+  padding: 0 2px;
+  border-radius: 3px;
 }
 
 .pagination {

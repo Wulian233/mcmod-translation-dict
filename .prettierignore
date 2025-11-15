@@ -1,0 +1,14 @@
+# Vitepress Output
+dist/
+
+# Node modules
+node_modules/
+
+# Public Assets
+public/
+
+cache/
+.vscode/
+pnpm-lock.yaml
+
+README.md
