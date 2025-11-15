@@ -2,7 +2,7 @@ import globals from "globals";
 
 export default [
   {
-    ignores: ["**/.wrangler/**"],
+    ignores: ["**/.wrangler/**", "**/dist/**"],
   },
   {
     files: ["**/*.js"],

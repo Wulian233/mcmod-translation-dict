@@ -1,17 +1,22 @@
 {
     "name": "mcmod-translation-dict",
     "description": "MC模组翻译参考词典",
-    "main": "public/index.html",
+    "main": "frontend/index.html",
     "type": "module",
     "scripts": {
-        "dev": "vercel dev",
+        "dev": "vite",
+        "build": "vite build",
         "upgrade-deps": "taze patch -I",
         "lint": "eslint ."
     },
+    "dependencies": {
+        "vue": "^3.5.24"
+    },
     "devDependencies": {
+        "@vitejs/plugin-vue": "^6.0.1",
         "eslint": "^9.39.1",
         "globals": "^16.5.0",
         "taze": "^19.9.0",
-        "vercel": "^48.9.0"
+        "vite": "^7.2.2"
     }
 }
