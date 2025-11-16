@@ -6,7 +6,7 @@
 
 *.db
 *.sql
-.vercel
+dist
 .wrangler
 node_modules
 
