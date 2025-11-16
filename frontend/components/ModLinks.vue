@@ -23,7 +23,7 @@ function toggleExpand() {
 
     <span 
       v-if="hasMultipleMods"
-      class="expand-btn text-primary" 
+      class="text-primary" 
       style="cursor: pointer; margin-left: 8px;"
       @click="toggleExpand"
     >

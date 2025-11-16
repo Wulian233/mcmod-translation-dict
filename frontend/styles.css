@@ -35,7 +35,7 @@ h1,
 
 #modSuggestions {
   background-color: var(--container-bg);
-  border-color: #ced4da;
+  border: 1px solid var(--border-color);
   display: none;
   max-height: 200px;
   overflow-y: auto;
@@ -88,6 +88,17 @@ h1,
   border-radius: 3px;
 }
 
+.modal-content {
+  background-color: var(--container-bg);
+  color: var(--text-color);
+}
+
+.modal-header,
+.modal-footer {
+  border-bottom-color: var(--border-color);
+  border-top-color: var(--border-color);
+}
+
 .pagination {
   display: flex;
   justify-content: center;
@@ -120,8 +131,18 @@ h1,
   opacity: 0.6;
 }
 
+.suggestion-item {
+  cursor: pointer;
+  color: var(--text-color);
+  background-color: transparent;
+}
+
 .suggestion-item:hover {
   background-color: var(--hover-color);
+}
+
+.text-primary {
+  color: var(--primary-color) !important;
 }
 
 footer {
@@ -157,6 +178,7 @@ tr:hover {
     --background-color: #212327;
     --container-bg: #404045;
     --border-color: #555;
+    --hover-color: #555;
     --footer-color: #bbb;
   }
 
@@ -187,7 +209,7 @@ tr:hover {
   #modFilter {
     background-color: #555;
     color: var(--text-color);
-    border: 1px solid #666;
+    border: 1px solid var(--border-color);
   }
 
   #searchInput::placeholder,
@@ -199,29 +221,6 @@ tr:hover {
     -webkit-box-shadow: 0 0 0px 100px var(--border-color) inset !important;
     -webkit-text-fill-color: var(--text-color) !important;
     caret-color: var(--text-color) !important;
-  }
-
-  #modFilter {
-    background-color: #555;
-    color: var(--text-color);
-    border: 1px solid var(--border-color);
-  }
-
-  #modSuggestions {
-    background-color: var(--container-bg);
-    border: 1px solid var(--border-color);
-    color: var(--text-color);
-  }
-
-  .modal-content {
-    background-color: var(--container-bg);
-    color: var(--text-color);
-  }
-
-  .modal-header,
-  .modal-footer {
-    border-bottom-color: var(--border-color);
-    border-top-color: var(--border-color);
   }
 
   .btn-close {
@@ -291,15 +290,6 @@ tr:hover {
   .form-select:focus {
     border-color: var(--secondary-color);
     box-shadow: 0 0 0 0.25rem rgba(0, 144, 254, 0.25);
-  }
-
-  .suggestion-item {
-    color: var(--text-color);
-    background-color: transparent;
-  }
-
-  .suggestion-item:hover {
-    background-color: rgba(255, 255, 255, 0.08);
   }
 
   .text-muted {

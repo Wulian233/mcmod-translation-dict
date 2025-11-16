@@ -83,22 +83,21 @@ function handleFocus() {
         id="modSuggestions" 
         class="position-absolute w-100 border border-top-0 rounded-bottom shadow-sm z-3 list-group" 
         :style="{ display: showSuggestions ? 'block' : 'none' }"
-        style="max-height: 250px; overflow-y: auto; z-index: 1050; background-color: var(--container-bg); border-color: var(--border-color);"
       >
-        <div v-if="filteredSuggestions.length === 0" class="px-3 py-2 text-muted suggestion-item">
+        <div v-if="filteredSuggestions.length === 0" class="px-3 py-2 suggestion-item">
           未找到匹配的模组
         </div>
         <div v-else>
           <div 
             v-for="mod in filteredSuggestions" 
             :key="mod.value || 'all'" 
-            class="px-3 py-2 cursor-pointer suggestion-item list-group-item"
+            class="px-3 py-2 suggestion-item list-group-item"
             :class="{ 'text-primary': mod.type === 'all' }"
             @mousedown.prevent="selectSuggestion(mod.value)"
           >
             {{ mod.text }}
           </div>
-          <div v-if="moreSuggestionsCount > 0" class="px-3 py-2 text-muted small suggestion-item">
+          <div v-if="moreSuggestionsCount > 0" class="px-3 py-2 small">
             还有 {{ moreSuggestionsCount }} 个模组，请输入关键词筛选...
           </div>
         </div>

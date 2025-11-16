@@ -93,7 +93,7 @@ onMounted(() => {
       </tr>
       
       <tr v-else-if="store.modFilterValue && totalItemsForPagination > 0">
-        <td colspan="4" class="text-muted small">
+        <td colspan="4" class="small">
           已筛选模组: {{ store.modFilterValue }}，共找到 {{ totalItemsForPagination }} 个结果
         </td>
       </tr>
