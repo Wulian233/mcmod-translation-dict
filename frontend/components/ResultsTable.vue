@@ -99,8 +99,8 @@ onMounted(() => {
       </tr>
       
       <tr v-for="item in currentResults" :key="item.key">
-        <td v-html="highlightQuery(store.searchMode === 'en2zh' ? item.trans_name : item.origin_name, store.searchQuery)"></td>
-        <td v-html="highlightQuery(store.searchMode === 'en2zh' ? item.origin_name : item.trans_name, store.searchQuery)"></td>
+        <td v-html="highlightQuery(store.searchMode === 'en2zh' ? item.trans_name : item.origin_name, store.lastSearchQuery)"></td>
+        <td v-html="highlightQuery(store.searchMode === 'en2zh' ? item.origin_name : item.trans_name, store.lastSearchQuery)"></td>
         <td style="max-width: 140px;">
             <ModLinks :item="item" />
         </td>

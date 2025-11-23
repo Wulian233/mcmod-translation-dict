@@ -11,6 +11,7 @@ const state = reactive({
   lastFullSearchKey: "", // 存储上一次完整搜索的唯一标识
   currentPage: 1, // 当前页码
   searchQuery: '', // 搜索输入框的值
+  lastSearchQuery: '', // 上一次执行搜索时的搜索词（用于高亮）
   searchMode: 'en2zh', // 搜索模式
   modFilterValue: '', // 模组筛选输入框的值
 

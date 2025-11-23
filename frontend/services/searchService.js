@@ -162,7 +162,13 @@ export async function search(resetPage = false) {
   if (now - store.lastSearchTime < MIN_INTERVAL) {
     if (!resetPage) return;
   }
-  updateState({ lastSearchTime: now, searchLoading: true, resultsUiMessage: "正在搜索中...", searchInfoMessage: '' });
+  updateState({ 
+    lastSearchTime: now, 
+    searchLoading: true, 
+    resultsUiMessage: "正在搜索中...", 
+    searchInfoMessage: '',
+    lastSearchQuery: query
+  });
 
   const requestStartTime = performance.now();
 
