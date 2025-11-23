@@ -8,6 +8,6 @@
     },
     "devDependencies": {
         "taze": "^19.9.0",
-        "wrangler": "^4.47.0"
+        "wrangler": "^4.50.0"
     }
 }
