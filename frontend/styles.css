@@ -6,7 +6,7 @@
   --background-color: #f8f9fa; /* 默认背景颜色 */
   --container-bg: #fff; /* 容器背景颜色 */
   --border-color: #ddd; /* 边框颜色 */
-  --highlight-bg: #ffeb3b; /* 高亮背景色 */
+  --highlight-bg: #ffc107; /* 高亮背景色 */
   --highlight-color: #000; /* 高亮文本色 */
   --hover-color: #f1f1f1; /* 悬停状态背景色 */
   --footer-color: #666; /* 页脚文本颜色 */
@@ -35,7 +35,7 @@ h1,
 
 #modSuggestions {
   background-color: var(--container-bg);
-  border-color: #ced4da;
+  border: 1px solid var(--border-color);
   display: none;
   max-height: 200px;
   overflow-y: auto;
@@ -43,6 +43,11 @@ h1,
 
 #searchInput {
   border-radius: 4px;
+}
+
+#searchInput::placeholder,
+#modFilter::placeholder {
+  color: var(--text-color);
 }
 
 #searchMode {
@@ -84,6 +89,19 @@ h1,
   background-color: var(--highlight-bg);
   font-weight: bold;
   color: var(--highlight-color);
+  padding: 0 2px;
+  border-radius: 3px;
+}
+
+.modal-content {
+  background-color: var(--container-bg);
+  color: var(--text-color);
+}
+
+.modal-header,
+.modal-footer {
+  border-bottom-color: var(--border-color);
+  border-top-color: var(--border-color);
 }
 
 .pagination {
@@ -118,8 +136,18 @@ h1,
   opacity: 0.6;
 }
 
+.suggestion-item {
+  cursor: pointer;
+  color: var(--text-color);
+  background-color: transparent;
+}
+
 .suggestion-item:hover {
   background-color: var(--hover-color);
+}
+
+.text-primary {
+  color: var(--primary-color) !important;
 }
 
 footer {
@@ -155,6 +183,7 @@ tr:hover {
     --background-color: #212327;
     --container-bg: #404045;
     --border-color: #555;
+    --hover-color: #555;
     --footer-color: #bbb;
   }
 
@@ -177,49 +206,17 @@ tr:hover {
     background: #888;
   }
 
-  a:hover {
-    color: #0073d1;
-  }
-
   #searchInput,
   #modFilter {
     background-color: #555;
     color: var(--text-color);
-    border: 1px solid #666;
-  }
-
-  #searchInput::placeholder,
-  #modFilter::placeholder {
-    color: var(--text-color);
+    border: 1px solid var(--border-color);
   }
 
   #searchInput:-webkit-autofill {
     -webkit-box-shadow: 0 0 0px 100px var(--border-color) inset !important;
     -webkit-text-fill-color: var(--text-color) !important;
     caret-color: var(--text-color) !important;
-  }
-
-  #modFilter {
-    background-color: #555;
-    color: var(--text-color);
-    border: 1px solid var(--border-color);
-  }
-
-  #modSuggestions {
-    background-color: var(--container-bg);
-    border: 1px solid var(--border-color);
-    color: var(--text-color);
-  }
-
-  .modal-content {
-    background-color: var(--container-bg);
-    color: var(--text-color);
-  }
-
-  .modal-header,
-  .modal-footer {
-    border-bottom-color: var(--border-color);
-    border-top-color: var(--border-color);
   }
 
   .btn-close {
@@ -289,15 +286,6 @@ tr:hover {
   .form-select:focus {
     border-color: var(--secondary-color);
     box-shadow: 0 0 0 0.25rem rgba(0, 144, 254, 0.25);
-  }
-
-  .suggestion-item {
-    color: var(--text-color);
-    background-color: transparent;
-  }
-
-  .suggestion-item:hover {
-    background-color: rgba(255, 255, 255, 0.08);
   }
 
   .text-muted {

@@ -3,20 +3,21 @@ export default {
     const url = new URL(request.url);
     const { pathname: path, searchParams } = url;
 
-    const corsHeaders = {
+    const headers = {
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Methods": "GET, OPTIONS",
       "Access-Control-Allow-Headers": "Content-Type",
+      "X-Content-Type-Options": "nosniff",
     };
 
     const jsonResponse = (data, status = 200) =>
       new Response(JSON.stringify(data), {
         status,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...headers, "Content-Type": "application/json" },
       });
 
     if (request.method === "OPTIONS") {
-      return new Response(null, { headers: corsHeaders });
+      return new Response(null, { headers: headers });
     }
 
     const cache = caches.default;
@@ -28,41 +29,43 @@ export default {
       return null;
     }
 
-    function parseAdvancedQuery(raw, column) {
-      const terms = [], exclude = [], fts = [];
-      const pattern = /"([^"]+)"|\S+/g;
-      let match;
+function parseAdvancedQuery(raw, column) {
+  const ftsParts = [];
 
-      while ((match = pattern.exec(raw)) !== null) {
-        if (match[1]) {
-          const phrase = match[1];
-          if (/[\u4e00-\u9fa5]/.test(phrase)) {
-            fts.push(`(${column}:"${phrase}" OR ${column}:${phrase}*)`);
-          } else {
-            fts.push(`${column}:"${phrase}"`);
-          }
-        } else {
-          const word = match[0];
-          if (word.startsWith("-")) {
-            exclude.push(word.slice(1));
-          } else if (word.endsWith("*")) {
-            terms.push(`${column}:${word}`);
-          } else if (word.endsWith("+")) {
-            const base = word.slice(0, -1);
-            terms.push(`${column}:${base}*`);
-            exclude.push(base);
-          } else if (/[\u4e00-\u9fa5]/.test(word)) {
-            fts.push(`(${column}:"${word}" OR ${column}:${word}*)`);
-          } else {
-            terms.push(`${column}:${word}`);
-          }
-        }
+  const pattern = /"([^"]+)"|\S+/g;
+  let match;
+
+  while ((match = pattern.exec(raw)) !== null) {
+    let token = match[1] || match[0];
+
+    const isExclude = token.startsWith("-");
+    if (isExclude) token = token.slice(1);
+
+    const hasChinese = /[\u4e00-\u9fa5]/.test(token);
+
+    let expr;
+    if (hasChinese) {
+      // 中文整体前缀匹配
+      expr = `${column}:${token}*`;
+    } else {
+      // 英文：保持你原来的逻辑
+      if (token.endsWith("*")) {
+        expr = `${column}:${token}`;
+      } else {
+        expr = `${column}:"${token}"`;
       }
-
-      if (terms.length) fts.push(...terms);
-      if (exclude.length) fts.push(...exclude.map(w => `NOT ${column}:${w}`));
-      return fts.join(" ");
     }
+
+    if (isExclude) {
+      ftsParts.push(`NOT ${expr}`);
+    } else {
+      ftsParts.push(expr);
+    }
+  }
+
+  return ftsParts.join(" ");
+}
+
 
     if (path === "/search") {
       const query = searchParams.get("q");
@@ -148,6 +151,6 @@ export default {
       }
     }
 
-    return new Response("Not Found", { status: 404, headers: corsHeaders });
+    return new Response("Not Found", { status: 404, headers: headers });
   },
 };
