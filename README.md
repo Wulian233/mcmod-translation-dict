@@ -35,71 +35,6 @@
 
 本项目网站关于部署及注意事项均在下面列出，供有兴趣的开发者搭建自己的版本。
 
-### API 格式
-
-本项目 API 请求格式如下：
-
-```
-https://api.vmct-cn.top/search?q=${query}&page=${currentPage}&mode=${mode}
-```
-
-其中：
-
-  * `query` 参数为搜索的内容。
-  * `currentPage` 参数为查询的页码，默认为 `1`。
-  * `mode` 参数为搜索模式，有两种有效值：
-      * `en2zh`：英文查中文（默认）。
-      * `zh2en`：中文查英文。
-
-另外还做了一些限制：每页最多返回 50 条条目，搜索词不能超过 50 字符，一次最多返回 500 页
-
-**API 返回的 JSON 格式示例：**
-
-```json
-{
-  "query": "stone",
-  "results": [
-    {
-      "trans_name": "石头",
-      "origin_name": "Stone",
-      "modid": "mysticalagriculture",
-      "version": "1.21",
-      "key": "crop.mysticalagriculture.stone",
-      "curseforge": "mystical-agriculture",
-      "frequency": 82
-    },
-    {
-      "trans_name": "石",
-      "origin_name": "Stone",
-      "modid": "silentgear",
-      "version": "1.20",
-      "key": "material.silentgear.stone",
-      "curseforge": "silent-gear",
-      "frequency": 13
-    }
-    // ... 更多结果
-  ],
-  "total": 6032,
-  "page": 1,
-  "mode": "en2zh"
-}
-```
-
-返回的 JSON 对象包含以下字段：
-
-  * `query`：当前搜索的查询词。
-  * `results`：一个数组，包含符合搜索条件的翻译条目。每个条目都是一个对象，包含：
-      * `trans_name`：翻译后的名称。
-      * `origin_name`：原始名称。
-      * `modid`：所属模组的 ID。
-      * `version`：模组的版本。
-      * `key`：译文对应的键名，鼠标悬停在网页上的“所属模组”条目上方时会显示此键名。
-      * `curseforge`：CurseForge 上的模组 ID。
-      * `frequency`：该译文的出现次数，用于智能排序。
-  * `total`：符合搜索条件的总条目数。
-  * `page`：当前查询的页码。
-  * `mode`：当前搜索模式。
-
 ### 前端
 
 所需环境：NodeJS
@@ -166,6 +101,24 @@ CREATE VIRTUAL TABLE dict_fts USING fts5(
 INSERT INTO dict_fts(rowid, origin_name, trans_name)
 SELECT rowid, origin_name, trans_name FROM dict;
 ```
+
+### API 格式
+
+本项目 API 请求格式如下：
+
+```
+https://api.vmct-cn.top/search?q=${query}&page=${currentPage}&mode=${mode}
+```
+
+其中：
+
+  * `query` 参数为搜索的内容。
+  * `currentPage` 参数为查询的页码，默认为 `1`。
+  * `mode` 参数为搜索模式，有两种有效值：
+      * `en2zh`：英文查中文（默认）。
+      * `zh2en`：中文查英文。
+
+另外还做了一些限制：每页最多返回 50 条条目，搜索词不能超过 50 字符，一次最多返回 500 页
 
 ### 更新数据库方法：
 

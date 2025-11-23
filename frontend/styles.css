@@ -206,10 +206,6 @@ tr:hover {
     background: #888;
   }
 
-  a:hover {
-    color: #0073d1;
-  }
-
   #searchInput,
   #modFilter {
     background-color: #555;

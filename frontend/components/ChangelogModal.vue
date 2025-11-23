@@ -20,7 +20,7 @@ async function fetchAndPopulateChangelog() {
         const tempErrorData = [{
             version: '加载失败',
             date: new Date().toLocaleDateString(),
-            changes: ['❌ 无法加载更新日志，请确保项目根目录有 changelog.json 文件。']
+            changes: ['❌ 无法加载更新日志']
         }];
         updateState({ changelogData: tempErrorData });
     }

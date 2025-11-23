@@ -66,7 +66,7 @@ onMounted(() => {
         项目生成，遵循
         <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh-hans">CC BY-NC-SA 4.0 协议</a>。
       </p>
-      <p>最后更新于：2025-11-15 | 📜 <a href="#" id="changelogLink" data-bs-toggle="modal" data-bs-target="#changelogModal">更新日志</a></p>
+      <p>最后更新于：2025-11-23 | 📜 <a href="#" id="changelogLink" data-bs-toggle="modal" data-bs-target="#changelogModal">更新日志</a></p>
     </footer>
   </div>
   
