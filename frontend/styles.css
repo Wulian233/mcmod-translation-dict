@@ -45,6 +45,11 @@ h1,
   border-radius: 4px;
 }
 
+#searchInput::placeholder,
+#modFilter::placeholder {
+  color: var(--text-color);
+}
+
 #searchMode {
   max-width: 150px;
 }
@@ -210,11 +215,6 @@ tr:hover {
     background-color: #555;
     color: var(--text-color);
     border: 1px solid var(--border-color);
-  }
-
-  #searchInput::placeholder,
-  #modFilter::placeholder {
-    color: var(--text-color);
   }
 
   #searchInput:-webkit-autofill {

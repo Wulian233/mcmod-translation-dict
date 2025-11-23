@@ -65,7 +65,7 @@ function handleFocus() {
 </script>
 
 <template>
-  <div id="filterContainer" :style="{ display: isFilterVisible ? 'block' : 'none' }" class="mb-3">
+  <div :style="{ display: isFilterVisible ? 'block' : 'none' }" class="mb-3">
     <label for="modFilter" class="form-label">筛选模组：</label>
     <div class="position-relative">
       <input 
