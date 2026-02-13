@@ -1,0 +1,16 @@
+{
+    "$schema": "node_modules/wrangler/config-schema.json",
+    "name": "d1-tutorial",
+    "main": "src/index.js",
+    "compatibility_date": "2026-01-20",
+    "observability": {
+        "enabled": true
+    },
+    "d1_databases": [
+        {
+            "binding": "DB",
+            "database_name": "prod-d1-tutorial",
+            "database_id": "5066f1ae-698c-47fc-8a2b-4408ad536cf5"
+        }
+    ]
+}
