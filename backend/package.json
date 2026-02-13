@@ -7,7 +7,7 @@
         "upgrade-deps": "taze patch -I"
     },
     "devDependencies": {
-        "taze": "^19.9.0",
-        "wrangler": "^4.50.0"
+        "taze": "^19.9.2",
+        "wrangler": "^4.65.0"
     }
 }
