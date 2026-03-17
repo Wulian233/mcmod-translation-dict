@@ -1,11 +1,11 @@
-import { defineConfig } from "vite";
-import vue from "@vitejs/plugin-vue";
+import { defineConfig } from 'vite'
+import vue from '@vitejs/plugin-vue'
 
 export default defineConfig({
   plugins: [vue()],
-  root: "frontend",
-  publicDir: "public",
-  base: "./",
+  root: 'frontend',
+  publicDir: 'public',
+  base: './',
 
   server: {
     port: 5173,
@@ -13,7 +13,7 @@ export default defineConfig({
   },
 
   build: {
-    outDir: "../dist",
+    outDir: '../dist',
     emptyOutDir: true,
   },
-});
+})

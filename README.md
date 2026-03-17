@@ -63,7 +63,7 @@ npm run dev
 
 关于创建 Worker 并链接 D1 数据库请看[官方教程](https://developers.cloudflare.com/d1/get-started/)，下方仅列出上传数据库的处理步骤：
 
-1. 下载原 `.db` 格式的数据库文件，并在 SQLite 官网下载[SQLite Tools](https://www.sqlite.org/2026/sqlite-tools-win-x64-3510200.zip)并解压（此处以 Windows x64 为例）。
+1. 下载原 `.db` 格式的数据库文件，并在 SQLite 官网下载[SQLite Tools](https://www.sqlite.org/2026/sqlite-tools-win-x64-3510300.zip)并解压（此处以 Windows x64 为例）。
 
 2. 在 sqlite3.exe（我们只需要它，其他的可以删除）所在位置新建终端，并输入下面的命令转换格式：
 
@@ -72,8 +72,8 @@ sqlite3 Dict-Sqlite.db .dump > input.sql
 ```
 
 3. 由于 D1 数据库的限制，我们还需要对数据库文件进行进一步的处理。
-你可以在 [Release](https://github.com/Wulian233/mcmod-translation-dict/releases/tag/sql_cleaner) 里
-下载适用于你的系统的打包好的版本。
+   你可以在 [Release](https://github.com/Wulian233/mcmod-translation-dict/releases/tag/sql_cleaner) 里
+   下载适用于你的系统的打包好的版本。
 
 > [!TIP]
 > 尽量把程序放在和 `input.sql` 一个目录下，运行结束后会自动删除原文件并生成 `Dict-Sqlite.sql` 。
@@ -116,11 +116,11 @@ https://api.vmct-cn.top/search?q=${query}&page=${currentPage}&mode=${mode}
 
 其中：
 
-  * `query` 参数为搜索的内容。
-  * `currentPage` 参数为查询的页码，默认为 `1`。
-  * `mode` 参数为搜索模式，有两种有效值：
-      * `en2zh`：英文查中文（默认）。
-      * `zh2en`：中文查英文。
+- `query` 参数为搜索的内容。
+- `currentPage` 参数为查询的页码，默认为 `1`。
+- `mode` 参数为搜索模式，有两种有效值：
+  - `en2zh`：英文查中文（默认）。
+  - `zh2en`：中文查英文。
 
 另外还做了一些限制：每页最多返回 50 条条目，搜索词不能超过 50 字符，一次最多返回 500 页
 

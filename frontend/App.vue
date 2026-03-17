@@ -1,49 +1,55 @@
 <script setup>
-import { onMounted, computed } from 'vue';
-import { useStore, updateState } from './store.js';
-import SearchBar from './components/SearchBar.vue';
-import ModFilter from './components/ModFilter.vue';
-import ResultsTable from './components/ResultsTable.vue';
-import ChangelogModal from './components/ChangelogModal.vue';
-import * as bootstrap from 'bootstrap';
+import { onMounted, computed } from 'vue'
+import { useStore, updateState } from './store.js'
+import SearchBar from './components/SearchBar.vue'
+import ModFilter from './components/ModFilter.vue'
+import ResultsTable from './components/ResultsTable.vue'
+import ChangelogModal from './components/ChangelogModal.vue'
+import * as bootstrap from 'bootstrap'
 
-const store = useStore();
+const store = useStore()
 
 const resultsMessage = computed(() => {
-  if (store.searchLoading) return "正在搜索中...";
-  if (store.resultsUiMessage) return store.resultsUiMessage;
-  
+  if (store.searchLoading) return '正在搜索中...'
+  if (store.resultsUiMessage) return store.resultsUiMessage
+
   if (store.currentApiResults.length === 0 && !store.searchLoading) {
-    return store.modFilterValue ? "当前模组筛选下未找到结果。" : "未找到结果";
+    return store.modFilterValue ? '当前模组筛选下未找到结果。' : '未找到结果'
   }
-  return '';
-});
+  return ''
+})
 
 onMounted(() => {
-  if (typeof bootstrap !== "undefined" && bootstrap.Modal) {
-    updateState({ 
-      changelogModal: new bootstrap.Modal(document.getElementById("changelogModal")) 
-    });
+  if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+    updateState({
+      changelogModal: new bootstrap.Modal(document.getElementById('changelogModal')),
+    })
   }
-});
+})
 </script>
 
 <template>
   <div class="container mt-5">
     <h1 class="text-center mb-4">MC 模组翻译参考词典</h1>
-    
+
     <SearchBar />
 
     <div class="mb-2 text-muted">
-      <strong>进阶搜索语法：</strong><br>
-      <ul style="margin-bottom:0; padding-left: 1.2em;">
+      <strong>进阶搜索语法：</strong><br />
+      <ul style="margin-bottom: 0; padding-left: 1.2em">
         <li>使用 <code>-</code> 排除特定单词，例如：<code>Save -as</code>（排除包含 as 的结果）</li>
         <li>使用引号 <code>""</code> 搜索准确单词组合，例如：<code>"Save as"</code></li>
-        <li>使用星号 <code>*</code> 匹配结尾不同的单词，例如：<code>any*</code> 可匹配 any、anyway、anything</li>
-        <li>使用加号 <code>+</code> 匹配结尾必须不同的单词，例如：<code>any+</code> 可匹配 anyway、anything、anywhere（不含 any）</li>
+        <li>
+          使用星号 <code>*</code> 匹配结尾不同的单词，例如：<code>any*</code> 可匹配
+          any、anyway、anything
+        </li>
+        <li>
+          使用加号 <code>+</code> 匹配结尾必须不同的单词，例如：<code>any+</code> 可匹配
+          anyway、anything、anywhere（不含 any）
+        </li>
       </ul>
     </div>
-    
+
     <ModFilter />
 
     <div id="searchInfo" class="mb-3">{{ store.searchInfoMessage }}</div>
@@ -62,14 +68,23 @@ onMounted(() => {
       </p>
       <p>
         词典翻译数据基于VM汉化组的
-        <a href="https://github.com/VM-Chinese-translate-group/i18n-Dict-Extender">i18n Dict Extender</a>
+        <a href="https://github.com/VM-Chinese-translate-group/i18n-Dict-Extender"
+          >i18n Dict Extender</a
+        >
         项目生成，遵循
-        <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh-hans">CC BY-NC-SA 4.0 协议</a>。
+        <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh-hans"
+          >CC BY-NC-SA 4.0 协议</a
+        >。
       </p>
-      <p>最后更新于：2026-01-13 | 📜 <a href="#" id="changelogLink" data-bs-toggle="modal" data-bs-target="#changelogModal">更新日志</a></p>
+      <p>
+        最后更新于：2026-03-17 | 📜
+        <a href="#" id="changelogLink" data-bs-toggle="modal" data-bs-target="#changelogModal"
+          >更新日志</a
+        >
+      </p>
     </footer>
   </div>
-  
+
   <ChangelogModal />
 </template>
 

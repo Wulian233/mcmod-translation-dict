@@ -5,4 +5,4 @@
 *.ico binary
 
 Cargo.lock generated
-package-lock.json generated
+pnpm-lock.json generated

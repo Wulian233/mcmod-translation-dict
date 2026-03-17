@@ -1,13 +1,13 @@
 {
-    "name": "mcmod-translation-dict-api",
-    "private": true,
-    "scripts": {
-        "deploy": "wrangler deploy",
-        "dev": "wrangler dev",
-        "upgrade-deps": "taze patch -I"
-    },
-    "devDependencies": {
-        "taze": "^19.9.2",
-        "wrangler": "^4.65.0"
-    }
+  "name": "mcmod-translation-dict-api",
+  "private": true,
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev",
+    "upgrade-deps": "taze patch -I"
+  },
+  "devDependencies": {
+    "taze": "^19.10.0",
+    "wrangler": "^4.74.0"
+  }
 }
