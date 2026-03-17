@@ -21,8 +21,8 @@ importers:
         specifier: ^10.32.1
         version: 10.32.1
       prettier:
-        specifier: 3.7.4
-        version: 3.7.4
+        specifier: 3.8.1
+        version: 3.8.1
       taze:
         specifier: ^19.10.0
         version: 19.10.0
@@ -639,10 +639,10 @@ packages:
       }
     engines: { node: ^10 || ^12 || >=14 }
 
-  prettier@3.7.4:
+  prettier@3.8.1:
     resolution:
       {
-        integrity: sha512-v6UNi1+3hSlVvv8fSaoUbggEM5VErKmmpGA7Pl3HF8V6uKY7rvClBOJlH6yNwQtfTueNkGVpOv/mtWL9L4bgRA==,
+        integrity: sha512-UOnG6LftzbdaHZcKoPFtOcCKztrQ57WkHDeRD9t/PTQtmT0NHSeWWepj6pS0z/N7+08BHFDQVUrfmfMRcZwbMg==,
       }
     engines: { node: '>=14' }
     hasBin: true
@@ -1089,7 +1089,7 @@ snapshots:
       picocolors: 1.1.1
       source-map-js: 1.2.1
 
-  prettier@3.7.4: {}
+  prettier@3.8.1: {}
 
   quansync@1.0.0: {}
 
