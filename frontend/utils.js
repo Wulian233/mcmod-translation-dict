@@ -104,7 +104,10 @@ export function getModLinks(item) {
     const modid = match ? match[1] : part
     const version = match ? match[2] : 'N/A'
 
-    const modKey = modKeys[index] || modid
+    // 处理后端传来的 '|' 分隔符，将其转为逗号加空格，用于 Tooltip 展示
+    const rawKey = modKeys[index] || modid
+    const modKey = rawKey.replace(/\|/g, ', ')
+
     const curseforge = curseforgeIds[index] || ''
 
     const curseforgeLink = curseforge

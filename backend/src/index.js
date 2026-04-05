@@ -85,37 +85,45 @@ export default {
       try {
         const resultsQuery = `
           WITH RankedMatches AS (
-            SELECT
-              d.trans_name, d.origin_name, d.modid, d.version, d.key, d.curseforge,
-              CASE
-                WHEN LOWER(d.${searchColumn}) = LOWER(?) THEN 3
-                WHEN dict_fts.rank = 0 THEN 2
-                ELSE 1
-              END AS match_weight,
-              dict_fts.rank AS fts_rank
-            FROM dict AS d
-            JOIN dict_fts ON d.rowid = dict_fts.rowid
+            SELECT 
+              d.trans_name, 
+              d.origin_name, 
+              d.modid, 
+              d.version, 
+              d.key, 
+              d.curseforge,
+              CASE 
+                WHEN LOWER(d.${searchColumn}) = LOWER(?) THEN 3 
+                ELSE 1 
+              END AS match_weight
+            FROM dict_fts
+            JOIN dict AS d ON d.rowid = dict_fts.rowid
             WHERE dict_fts MATCH ?
           ),
-          AggregatedMods AS (
-            SELECT
-              trans_name, origin_name, modid,
-              MIN(match_weight) AS min_match_weight_mod,
-              GROUP_CONCAT(version) AS versions,
-              GROUP_CONCAT("key") AS keys,
-              GROUP_CONCAT(curseforge) AS curseforges
+          ModBundles AS (
+            SELECT 
+              trans_name, 
+              origin_name,
+              min(match_weight) as min_weight,
+              modid || ' (' || GROUP_CONCAT(version, '/') || ')' as mod_with_ver,
+              /* 使用 DISTINCT 移除重复的 Key，只保留唯一的 Key */
+              GROUP_CONCAT(DISTINCT "key") as unique_keys, 
+              /* 同理，Curseforge ID 通常也是一样的，也可以去重 */
+              GROUP_CONCAT(DISTINCT COALESCE(curseforge, '')) as unique_cfs
             FROM RankedMatches
             GROUP BY trans_name, origin_name, modid
           )
-          SELECT
-            am.trans_name, am.origin_name,
-            GROUP_CONCAT(am.modid || " (" || am.versions || ")", ", ") AS all_mods,
-            GROUP_CONCAT(am.keys) AS all_keys,
-            GROUP_CONCAT(am.curseforges) AS all_curseforges,
+          SELECT 
+            trans_name, 
+            origin_name,
+            GROUP_CONCAT(mod_with_ver, ', ') AS all_mods,
+            /* 这里的 unique_keys 已经去重，如果该模组只有一个 Key，结果就不含分隔符 */
+            GROUP_CONCAT(REPLACE(unique_keys, ',', '|'), ',') AS all_keys,
+            GROUP_CONCAT(REPLACE(unique_cfs, ',', '|'), ',') AS all_curseforges,
             COUNT(*) AS frequency
-          FROM AggregatedMods AS am
-          GROUP BY am.trans_name, am.origin_name
-          ORDER BY MIN(am.min_match_weight_mod) DESC, COUNT(*) DESC, am.origin_name
+          FROM ModBundles
+          GROUP BY trans_name, origin_name
+          ORDER BY MIN(min_weight) DESC, frequency DESC, origin_name
           LIMIT 50 OFFSET ?;
         `
 

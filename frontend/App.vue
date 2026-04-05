@@ -7,6 +7,7 @@ import ResultsTable from './components/ResultsTable.vue'
 import ChangelogModal from './components/ChangelogModal.vue'
 import * as bootstrap from 'bootstrap'
 
+const buildTime = __BUILD_TIME__
 const store = useStore()
 
 const resultsMessage = computed(() => {
@@ -77,7 +78,7 @@ onMounted(() => {
         >。
       </p>
       <p>
-        最后更新于：2026-03-17 | 📜
+        最后更新于：{{ buildTime }} | 📜
         <a href="#" id="changelogLink" data-bs-toggle="modal" data-bs-target="#changelogModal"
           >更新日志</a
         >

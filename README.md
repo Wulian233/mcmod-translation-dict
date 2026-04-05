@@ -106,23 +106,87 @@ SELECT rowid, origin_name, trans_name FROM dict;
 
 浏览器进入存放词典数据的 CloudFlare D1 数据库，点击 Explore Data，并删除除最后一个以外的所有表。之后方法同上。
 
-### API 格式
+## API 接口文档
 
-本项目 API 请求格式如下：
+本项目后端基于 Cloudflare Worker 和 D1 数据库构建，支持高级全文搜索（FTS5）和结果聚合。
 
+### 基础信息
+
+- **Base URL**: `https://api.vmct-cn.top` (请替换为你实际部署的地址)
+- **协议**: HTTPS
+- **方法**: GET
+- **缓存策略**: 浏览器及边缘节点缓存 7 天
+
+### 1. 搜索接口 `/search`
+
+执行关键词搜索，获取翻译结果及关联模组信息。
+
+**完整请求示例：**`https://api.vmct-cn.top/search?q=${query}&page=${currentPage}&mode=${mode}`
+
+#### 请求参数
+
+| 参数名 | 类型   | 必填 | 默认值  | 说明                                         |
+| :----- | :----- | :--- | :------ | :------------------------------------------- |
+| `q`    | String | 是   | -       | 搜索词（支持高级语法，详见下方）             |
+| `page` | Int    | 否   | `1`     | 当前页码                                     |
+| `mode` | String | 否   | `en2zh` | 搜索模式：`en2zh` (英查中), `zh2en` (中查英) |
+
+#### 高级搜索语法
+
+搜索词 `q` 支持以下逻辑：
+
+- **短语匹配**: 使用引号包裹，如 `"Iron Ingot"`。
+- **排除关键词**: 使用减号前缀，如 `machine -input`（搜索包含 machine 但不含 input 的结果）。
+- **前缀匹配**: 英文末尾加 `*`，中文默认支持前缀匹配。
+- **混合搜索**: 支持中英文混合输入。
+
+#### 响应示例
+
+```json
+{
+  "query": "Staff",
+  "results": [
+    {
+      "trans_name": "法杖",
+      "origin_name": "Staff",
+      "all_mods": "actuallyadditions (1.12.2), cqrepoured (1.12.2), hexcasting (1.18), mysticalagriculture (1.20/1.16/1.21/1.18), roots (1.12.2/1.21), rootsclassic (1.12.2), wizardry (1.12.2/1.12.2)",
+      "all_keys": "booklet.actuallyadditions.chapter.staff.name,item.staff.name,hexcasting.entry.staff,augmentType.mysticalagriculture.staff,item.staff.name|item.roots.staff,item.staff.name,item.wizardry:staff.name|wizardry.book.items_blocks.staff.title",
+      "all_curseforges": "actually-additions,cqrepoured,hexcasting,mystical-agriculture,roots,roots-classic,wizardry-mod",
+      "frequency": 7
+    }
+  ]
+}
 ```
-https://api.vmct-cn.top/search?q=${query}&page=${currentPage}&mode=${mode}
-```
 
-其中：
+#### 字段说明
 
-- `query` 参数为搜索的内容。
-- `currentPage` 参数为查询的页码，默认为 `1`。
-- `mode` 参数为搜索模式，有两种有效值：
-  - `en2zh`：英文查中文（默认）。
-  - `zh2en`：中文查英文。
+| 字段名                    | 说明                                                                              |
+| :------------------------ | :-------------------------------------------------------------------------------- |
+| `total`                   | 匹配到的总条目数（去重后的翻译对数量）                                            |
+| `results`                 | 结果数组                                                                          |
+| `results.trans_name`      | 译文名称                                                                          |
+| `results.origin_name`     | 原文名称                                                                          |
+| `results.all_mods`        | 出现该翻译的模组及版本列表，多个模组用 `, ` 分隔                                  |
+| `results.all_keys`        | 对应模组的语言文件 Key。若单个模组有多个 Key，内部用 `\|` 分隔，模组间用 `,` 分隔 |
+| `results.all_curseforges` | 对应模组的 CurseForge 项目 ID                                                     |
+| `results.frequency`       | 该翻译对在不同模组配置中出现的频次                                                |
 
-另外还做了一些限制：每页最多返回 50 条条目，搜索词不能超过 50 字符，一次最多返回 500 页
+---
+
+### 2. 错误码说明
+
+| 状态码 | 说明       | 错误信息示例                                    |
+| :----- | :--------- | :---------------------------------------------- |
+| `400`  | 参数错误   | `{"error":"查询参数不能为空"}`                  |
+| `400`  | 参数错误   | `{"error": "搜索词长度不能超过50个字符"}`       |
+| `404`  | 路径错误   | `Not Found`                                     |
+| `500`  | 数据库异常 | `{"error": "数据库查询失败", "details": "..."}` |
+
+### 3. 开发注意事项
+
+1. **跨域支持 (CORS)**: API 已默认开启全局跨域限制，允许所有来源访问。
+2. **速率限制**: 前端建议自行实现请求防抖/节流（建议间隔 1000ms），以保护 Worker 免费额度。
+3. **数据清洗**: 后端 SQL 逻辑会自动处理重复的 Key。如果 `productivebees` 在 5 个版本中 Key 相同，`all_keys` 中只会保留一个唯一值。
 
 ## 版权归属
 
