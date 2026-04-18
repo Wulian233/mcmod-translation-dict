@@ -102,7 +102,9 @@ async function fetchAllResults(selectedMod) {
   updateState({ resultsUiMessage: '正在获取所有结果，请稍候...', searchInfoMessage: '' })
 
   try {
-    const allResults = [...(page === 1 && store.currentApiResults.length ? store.currentApiResults : [])]
+    const allResults = [
+      ...(page === 1 && store.currentApiResults.length ? store.currentApiResults : []),
+    ]
     const existingKeys = new Set(allResults.map((item) => item.key))
 
     const pagesToFetch = Array.from({ length: totalPages }, (_, i) => i + 1).filter(

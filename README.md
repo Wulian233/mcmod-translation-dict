@@ -49,7 +49,7 @@ npm run dev
 
 本项目将其托管在了 Vercel 上并连接了 Github 仓库，仓库推送更新自动同步项目页面。
 
-在部署自己的项目时，请记得将 `frontend\store.js` 里的第五行 `API_BASE_URL` 替换为你部署的 API 地址。
+在部署自己的项目时，请记得将 `frontend\config.js` 里的 `baseUrl` 替换为你部署的 API 地址。
 
 另外还在前端做了速率限制（可配置时间），每秒最多搜索一次。
 
@@ -63,7 +63,7 @@ npm run dev
 
 关于创建 Worker 并链接 D1 数据库请看[官方教程](https://developers.cloudflare.com/d1/get-started/)，下方仅列出上传数据库的处理步骤：
 
-1. 下载原 `.db` 格式的数据库文件，并在 SQLite 官网下载[SQLite Tools](https://www.sqlite.org/2026/sqlite-tools-win-x64-3510300.zip)并解压（此处以 Windows x64 为例）。
+1. 下载原 `.db` 格式的数据库文件，并在 SQLite 官网下载[SQLite Tools](https://www.sqlite.org/2026/sqlite-tools-win-x64-3530000.zip)并解压（此处以 Windows x64 为例）。
 
 2. 在 sqlite3.exe（我们只需要它，其他的可以删除）所在位置新建终端，并输入下面的命令转换格式：
 
