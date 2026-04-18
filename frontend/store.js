@@ -1,9 +1,16 @@
 import { reactive, readonly } from 'vue'
+import { API_CONFIG, SEARCH_CONFIG } from './config.js'
 
-export const MIN_INTERVAL = 1000 // 搜索最小间隔时间（毫秒）
-export const itemsPerPage = 50 // 每页显示的项目数量
-export const API_BASE_URL = 'https://api.vmct-cn.top' // API 基础 URL
-export const API_SEARCH_MCMOD = 'https://search.mcmod.cn/s?key=' // MC百科搜索 API
+// 搜索配置常量
+export const MIN_INTERVAL = SEARCH_CONFIG.minIntervalMs // 搜索最小间隔时间（毫秒）
+export const itemsPerPage = SEARCH_CONFIG.itemsPerPage // 每页显示的项目数量
+export const MAX_QUERY_LENGTH = SEARCH_CONFIG.maxQueryLength // 搜索词长度上限
+
+// API 配置常量
+export const API_BASE_URL = API_CONFIG.baseUrl // API 基础 URL
+export const API_SEARCH_MCMOD = API_CONFIG.mcmodSearchUrl // MC百科搜索 API
+export const FULL_FETCH_CONCURRENCY = SEARCH_CONFIG.fullFetchConcurrency // 全量抓取分页并发数
+export const PAGE_CACHE_SIZE = SEARCH_CONFIG.pageCacheSize // 前端页面缓存上限
 
 const state = reactive({
   // 搜索状态
@@ -16,8 +23,8 @@ const state = reactive({
   modFilterValue: '', // 模组筛选输入框的值
 
   // 结果状态
-  currentApiResults: [], // 存储当前页从API获取的原始结果
-  totalApiMatches: 0, // 存储API返回的总匹配条目数
+  currentApiResults: [], // 存储当前页从 API 获取的原始结果
+  totalApiMatches: 0, // 存储 API 返回的总匹配条目数
   allApiResults: [], // 存储所有页面的结果（用于模组筛选）
   availableMods: [], // 存储当前搜索结果中所有可用的模组列表（按频率排序）
 
