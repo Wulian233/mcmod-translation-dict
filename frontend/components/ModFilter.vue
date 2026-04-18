@@ -14,20 +14,13 @@ const filteredSuggestions = computed(() => {
   if (inputValue === '') {
     return [
       { text: '显示全部模组', value: '', type: 'all' },
-      ...store.availableMods.slice(0, 10).map((mod) => ({ text: mod, value: mod, type: 'mod' })),
+      ...store.availableMods.map((mod) => ({ text: mod, value: mod, type: 'mod' })),
     ]
-  } else {
-    return store.availableMods
-      .filter((mod) => mod.toLowerCase().includes(inputValue))
-      .map((mod) => ({ text: mod, value: mod, type: 'mod' }))
   }
-})
 
-const moreSuggestionsCount = computed(() => {
-  if (store.modFilterValue.trim() === '') {
-    return Math.max(0, store.availableMods.length - 10)
-  }
-  return 0
+  return store.availableMods
+    .filter((mod) => mod.toLowerCase().includes(inputValue))
+    .map((mod) => ({ text: mod, value: mod, type: 'mod' }))
 })
 
 function handleModFilterInput(e) {
@@ -96,9 +89,6 @@ function handleFocus() {
             @mousedown.prevent="selectSuggestion(mod.value)"
           >
             {{ mod.text }}
-          </div>
-          <div v-if="moreSuggestionsCount > 0" class="px-3 py-2 small">
-            还有 {{ moreSuggestionsCount }} 个模组，请输入关键词筛选...
           </div>
         </div>
       </div>
