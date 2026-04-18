@@ -9,7 +9,6 @@ export const MAX_QUERY_LENGTH = SEARCH_CONFIG.maxQueryLength // 搜索词长度�
 // API 配置常量
 export const API_BASE_URL = API_CONFIG.baseUrl // API 基础 URL
 export const API_SEARCH_MCMOD = API_CONFIG.mcmodSearchUrl // MC百科搜索 API
-export const FULL_FETCH_CONCURRENCY = SEARCH_CONFIG.fullFetchConcurrency // 全量抓取分页并发数
 export const PAGE_CACHE_SIZE = SEARCH_CONFIG.pageCacheSize // 前端页面缓存上限
 
 const state = reactive({

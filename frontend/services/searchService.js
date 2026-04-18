@@ -4,7 +4,6 @@ import {
   MIN_INTERVAL,
   itemsPerPage,
   MAX_QUERY_LENGTH,
-  FULL_FETCH_CONCURRENCY,
   PAGE_CACHE_SIZE,
 } from '../store.js'
 import { matchesModFilter, setupModFilter } from '../utils.js'
@@ -94,24 +93,6 @@ function abortActiveSearch() {
   return activeSearchController.signal
 }
 
-async function fetchPagesWithConcurrency(pages, context, signal) {
-  const tasks = [...pages]
-  const results = []
-
-  async function worker() {
-    while (tasks.length) {
-      const page = tasks.shift()
-      const data = await getPageData({ ...context, page, signal })
-      results.push(data?.results ?? [])
-    }
-  }
-
-  const workerCount = Math.min(FULL_FETCH_CONCURRENCY, tasks.length || 1)
-  await Promise.all(Array.from({ length: workerCount }, () => worker()))
-
-  return results.flat()
-}
-
 async function fetchAllResults(selectedMod) {
   const store = useStore()
   const { query, mode, page } = getSearchContext(store, false)
@@ -128,9 +109,13 @@ async function fetchAllResults(selectedMod) {
       (targetPage) => !(targetPage === page && store.currentApiResults.length),
     )
 
-    const fetched = await fetchPagesWithConcurrency(pagesToFetch, { query, mode }, signal)
+    const allPageResults = await Promise.all(
+      pagesToFetch.map((targetPage) =>
+        getPageData({ query, page: targetPage, mode, signal }).then((data) => data?.results ?? []),
+      ),
+    )
 
-    fetched.forEach((item) => {
+    allPageResults.flat().forEach((item) => {
       if (!existingKeys.has(item.key)) {
         allResults.push(item)
         existingKeys.add(item.key)
