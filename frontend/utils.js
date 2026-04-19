@@ -76,15 +76,15 @@ export function highlightQuery(text, rawQuery) {
     .filter((t) => t.type !== 'exclude')
     .map((t) => {
       if (t.type === 'phrase') return escapeRegex(t.value)
-      if (t.type === 'prefix') return escapeRegex(t.value) + '\\w*'
-      if (t.type === 'expand') return escapeRegex(t.value) + '\\w+'
+      if (t.type === 'prefix') return escapeRegex(t.value) + '[\\p{L}\\p{N}_-]*'
+      if (t.type === 'expand') return escapeRegex(t.value) + '[\\p{L}\\p{N}_-]+'
       return escapeRegex(t.value)
     })
 
   if (patterns.length === 0) return safeText
 
   // 构造正则表达式进行高亮
-  const regex = new RegExp('(' + patterns.join('|') + ')', 'gi')
+  const regex = new RegExp('(' + patterns.join('|') + ')', 'giu')
   return safeText.replace(regex, (m) => `<span class="highlight">${m}</span>`)
 }
 
