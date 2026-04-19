@@ -49,6 +49,7 @@ function parseAdvancedQuery(raw, column) {
   let match
 
   while ((match = pattern.exec(raw)) !== null) {
+    const isPhrase = Boolean(match[1])
     let token = match[1] || match[0]
 
     const isExclude = token.startsWith('-')
@@ -56,10 +57,16 @@ function parseAdvancedQuery(raw, column) {
 
     if (!token) continue
 
+    let expr
     const hasChinese = /[\u4e00-\u9fa5]/.test(token)
 
-    let expr
-    if (hasChinese) {
+    if (isPhrase) {
+      expr = `${column}:"${token}"`
+    } else if (token.endsWith('+')) {
+      const base = token.slice(0, -1)
+      if (!base) continue
+      expr = `(${column}:${base}* NOT ${column}:"${base}")`
+    } else if (hasChinese) {
       expr = `${column}:${token}*`
     } else if (token.endsWith('*')) {
       expr = `${column}:${token}`
