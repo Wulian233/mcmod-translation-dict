@@ -1,5 +1,28 @@
 import { API_SEARCH_MCMOD } from './store.js'
 
+export function getResultKey(item) {
+  return [
+    item.origin_name || '',
+    item.trans_name || '',
+    item.all_mods || '',
+    item.all_keys || '',
+  ].join('\u001f')
+}
+
+export function escapeHtml(value) {
+  return String(value ?? '').replace(
+    /[&<>"']/g,
+    (m) =>
+      ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;',
+      })[m],
+  )
+}
+
 export function extractModIds(allModsString) {
   if (!allModsString || allModsString === '未知模组 (N/A)') return []
 
@@ -51,17 +74,7 @@ export function highlightQuery(text, rawQuery) {
   if (!text || !rawQuery) return text || ''
 
   const tokens = parseQuery(rawQuery)
-  const safeText = text.replace(
-    /[&<>"']/g,
-    (m) =>
-      ({
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        '"': '&quot;',
-        "'": '&#39;',
-      })[m],
-  )
+  const safeText = escapeHtml(text)
 
   // 排除检查
   for (const t of tokens.filter((t) => t.type === 'exclude')) {
@@ -110,24 +123,15 @@ export function getModLinks(item) {
 
     const curseforge = curseforgeIds[index] || ''
 
-    const curseforgeLink = curseforge
-      ? `<a href="https://www.curseforge.com/minecraft/mc-mods/${curseforge}"
-                target="_blank" rel="noopener noreferrer" title="在 CurseForge 查看" style="margin-left: 4px;">
-                <img src="curseforge.svg" alt="CurseForge" width="16" height="16">
-               </a>`
-      : ''
-
-    const mcmodSearchLink = modid
-      ? `<a href="${API_SEARCH_MCMOD}${encodeURIComponent(modid)}"
-                target="_blank" rel="noopener noreferrer" title="在 MC 百科搜索 ModID" style="margin-left: 4px;">
-                <img src="mcmod.svg" alt="MC百科" width="16" height="16">
-               </a>`
-      : ''
-
     return {
       name: `${modid} (${version})`,
+      modid,
+      version,
       key: modKey,
-      html: `<span title="${modKey}">${modid} (${version}) ${curseforgeLink} ${mcmodSearchLink}</span>`,
+      curseforgeUrl: curseforge
+        ? `https://www.curseforge.com/minecraft/mc-mods/${encodeURIComponent(curseforge)}`
+        : '',
+      mcmodUrl: modid ? `${API_SEARCH_MCMOD}${encodeURIComponent(modid)}` : '',
     }
   })
 }

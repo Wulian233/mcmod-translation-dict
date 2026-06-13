@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import ModLinks from './ModLinks.vue'
 import { useStore, updateState, itemsPerPage } from '../store.js'
-import { highlightQuery } from '../utils.js'
+import { getResultKey, highlightQuery } from '../utils.js'
 import { search } from '../services/searchService.js'
 
 defineProps({
@@ -42,7 +42,7 @@ function handlePageChange(page) {
         </td>
       </tr>
 
-      <tr v-for="item in currentResults" :key="item.key">
+      <tr v-for="item in currentResults" :key="getResultKey(item)">
         <td
           v-html="
             highlightQuery(

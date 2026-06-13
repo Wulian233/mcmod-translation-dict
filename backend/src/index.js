@@ -5,6 +5,10 @@ const COUNT_CACHE_MAX_ENTRIES = 200
 
 const countCache = new Map()
 
+function isMissingOptimizedTableError(err) {
+  return /no such table:\s*(dict_mod_bundle|dict_bundle_fts)/i.test(err?.message || '')
+}
+
 function setCountCache(key, total) {
   if (countCache.has(key)) countCache.delete(key)
   countCache.set(key, { total, expiresAt: Date.now() + COUNT_CACHE_TTL_MS })
@@ -43,8 +47,13 @@ function validateQuery(query) {
   return null
 }
 
+function quoteFts(value) {
+  return `"${value.replace(/"/g, '""')}"`
+}
+
 function parseAdvancedQuery(raw, column) {
-  const ftsParts = []
+  const includeParts = []
+  const excludeParts = []
   const pattern = /"([^"]+)"|\S+/g
   let match
 
@@ -57,27 +66,35 @@ function parseAdvancedQuery(raw, column) {
 
     if (!token) continue
 
-    let expr
     const hasChinese = /[\u4e00-\u9fa5]/.test(token)
+    let expr
 
     if (isPhrase) {
-      expr = `${column}:"${token}"`
+      expr = `${column}:${quoteFts(token)}`
     } else if (token.endsWith('+')) {
       const base = token.slice(0, -1)
       if (!base) continue
-      expr = `(${column}:${base}* NOT ${column}:"${base}")`
+      expr = `(${column}:${quoteFts(base)}* NOT ${column}:${quoteFts(base)})`
     } else if (hasChinese) {
-      expr = `${column}:${token}*`
+      expr = `${column}:${quoteFts(token)}*`
     } else if (token.endsWith('*')) {
-      expr = `${column}:${token}`
+      const base = token.slice(0, -1)
+      if (!base) continue
+      expr = `${column}:${quoteFts(base)}*`
     } else {
-      expr = `${column}:"${token}"`
+      expr = `${column}:${quoteFts(token)}`
     }
 
-    ftsParts.push(isExclude ? `NOT ${expr}` : expr)
+    if (isExclude) {
+      excludeParts.push(expr)
+    } else {
+      includeParts.push(expr)
+    }
   }
 
-  return ftsParts.join(' ')
+  if (includeParts.length === 0) return ''
+
+  return [...includeParts, ...excludeParts.map((expr) => `NOT ${expr}`)].join(' ')
 }
 
 function jsonResponse(data, status, headers) {
@@ -85,6 +102,143 @@ function jsonResponse(data, status, headers) {
     status,
     headers: { ...headers, 'Content-Type': 'application/json' },
   })
+}
+
+const optimizedResultsQuery = `
+  WITH RankedMatches AS (
+    SELECT
+      b.trans_name,
+      b.origin_name,
+      b.mod_with_ver,
+      b.unique_keys,
+      b.unique_cfs,
+      CASE
+        WHEN LOWER(b.__SEARCH_COLUMN__) = LOWER(?) THEN 1
+        ELSE 0
+      END AS exact_match
+    FROM dict_bundle_fts
+    JOIN dict_mod_bundle AS b ON b.rowid = dict_bundle_fts.rowid
+    WHERE dict_bundle_fts MATCH ?
+  )
+  SELECT
+    trans_name,
+    origin_name,
+    GROUP_CONCAT(mod_with_ver, ', ') AS all_mods,
+    GROUP_CONCAT(REPLACE(unique_keys, ',', '|'), ',') AS all_keys,
+    GROUP_CONCAT(REPLACE(unique_cfs, ',', '|'), ',') AS all_curseforges,
+    COUNT(*) AS frequency
+  FROM RankedMatches
+  GROUP BY trans_name, origin_name
+  ORDER BY MAX(exact_match) DESC, frequency DESC, origin_name
+  LIMIT ? OFFSET ?;
+`
+
+const optimizedCountQuery = `
+  SELECT COUNT(*) as total
+  FROM (
+    SELECT 1
+    FROM dict_bundle_fts
+    JOIN dict_mod_bundle AS b ON b.rowid = dict_bundle_fts.rowid
+    WHERE dict_bundle_fts MATCH ?
+    GROUP BY b.trans_name, b.origin_name
+  );
+`
+
+const legacyResultsQuery = `
+  WITH RankedMatches AS (
+    SELECT
+      d.trans_name,
+      d.origin_name,
+      d.modid,
+      d.version,
+      d.key,
+      d.curseforge,
+      CASE
+        WHEN LOWER(d.__SEARCH_COLUMN__) = LOWER(?) THEN 1
+        ELSE 0
+      END AS exact_match
+    FROM dict_fts
+    JOIN dict AS d ON d.rowid = dict_fts.rowid
+    WHERE dict_fts MATCH ?
+  ),
+  ModBundles AS (
+    SELECT
+      trans_name,
+      origin_name,
+      MAX(exact_match) AS exact_match,
+      modid || ' (' || GROUP_CONCAT(version, '/') || ')' AS mod_with_ver,
+      GROUP_CONCAT(DISTINCT "key") AS unique_keys,
+      GROUP_CONCAT(DISTINCT COALESCE(curseforge, '')) AS unique_cfs
+    FROM RankedMatches
+    GROUP BY trans_name, origin_name, modid
+  )
+  SELECT
+    trans_name,
+    origin_name,
+    GROUP_CONCAT(mod_with_ver, ', ') AS all_mods,
+    GROUP_CONCAT(REPLACE(unique_keys, ',', '|'), ',') AS all_keys,
+    GROUP_CONCAT(REPLACE(unique_cfs, ',', '|'), ',') AS all_curseforges,
+    COUNT(*) AS frequency
+  FROM ModBundles
+  GROUP BY trans_name, origin_name
+  ORDER BY MAX(exact_match) DESC, frequency DESC, origin_name
+  LIMIT ? OFFSET ?;
+`
+
+const legacyCountQuery = `
+  SELECT COUNT(*) as total
+  FROM (
+    WITH ModBundles AS (
+      SELECT d.trans_name, d.origin_name, d.modid
+      FROM dict_fts
+      JOIN dict AS d ON d.rowid = dict_fts.rowid
+      WHERE dict_fts MATCH ?
+      GROUP BY d.trans_name, d.origin_name, d.modid
+    )
+    SELECT 1
+    FROM ModBundles
+    GROUP BY trans_name, origin_name
+  );
+`
+
+async function runSearchQueries({
+  env,
+  normalizedQuery,
+  searchTermFts,
+  searchColumn,
+  itemsPerPage,
+  offset,
+  cachedTotal,
+}) {
+  const bindResults = (query) =>
+    env.DB.prepare(query.replaceAll('__SEARCH_COLUMN__', searchColumn)).bind(
+      normalizedQuery,
+      searchTermFts,
+      itemsPerPage,
+      offset,
+    )
+
+  const runQueryPair = async (resultsQuery, countQuery) => {
+    const resultsStatement = bindResults(resultsQuery)
+
+    if (cachedTotal !== null) {
+      const resultsData = await resultsStatement.all()
+      return [resultsData, { total: cachedTotal }]
+    }
+
+    const [resultsData, countData] = await env.DB.batch([
+      resultsStatement,
+      env.DB.prepare(countQuery).bind(searchTermFts),
+    ])
+    return [resultsData, countData.results?.[0] ?? { total: 0 }]
+  }
+
+  try {
+    return await runQueryPair(optimizedResultsQuery, optimizedCountQuery)
+  } catch (err) {
+    if (!isMissingOptimizedTableError(err)) throw err
+    return runQueryPair(legacyResultsQuery, legacyCountQuery)
+  }
 }
 
 export default {
@@ -113,6 +267,9 @@ export default {
     const searchColumn = mode === 'en2zh' ? 'origin_name' : 'trans_name'
     const normalizedQuery = query.trim()
     const searchTermFts = parseAdvancedQuery(normalizedQuery, searchColumn)
+    if (!searchTermFts) {
+      return jsonResponse({ error: '搜索词不能只包含排除条件' }, 400, headers)
+    }
 
     const cache = caches.default
     const cacheKey = new Request(request.url, request)
@@ -120,71 +277,18 @@ export default {
     if (cached) return cached
 
     try {
-      const resultsQuery = `
-        WITH RankedMatches AS (
-          SELECT
-            d.trans_name,
-            d.origin_name,
-            d.modid,
-            d.version,
-            d.key,
-            d.curseforge,
-            CASE
-              WHEN LOWER(d.${searchColumn}) = LOWER(?) THEN 1
-              ELSE 0
-            END AS exact_match
-          FROM dict_fts
-          JOIN dict AS d ON d.rowid = dict_fts.rowid
-          WHERE dict_fts MATCH ?
-        ),
-        ModBundles AS (
-          SELECT
-            trans_name,
-            origin_name,
-            MAX(exact_match) AS exact_match,
-            modid || ' (' || GROUP_CONCAT(version, '/') || ')' AS mod_with_ver,
-            GROUP_CONCAT(DISTINCT "key") AS unique_keys,
-            GROUP_CONCAT(DISTINCT COALESCE(curseforge, '')) AS unique_cfs
-          FROM RankedMatches
-          GROUP BY trans_name, origin_name, modid
-        )
-        SELECT
-          trans_name,
-          origin_name,
-          GROUP_CONCAT(mod_with_ver, ', ') AS all_mods,
-          GROUP_CONCAT(REPLACE(unique_keys, ',', '|'), ',') AS all_keys,
-          GROUP_CONCAT(REPLACE(unique_cfs, ',', '|'), ',') AS all_curseforges,
-          COUNT(*) AS frequency
-        FROM ModBundles
-        GROUP BY trans_name, origin_name
-        ORDER BY MAX(exact_match) DESC, frequency DESC, origin_name
-        LIMIT ? OFFSET ?;
-      `
-
       const countKey = `${mode}::${searchTermFts}`
       const cachedTotal = getCountCache(countKey)
 
-      const resultsPromise = env.DB.prepare(resultsQuery)
-        .bind(normalizedQuery, searchTermFts, ITEMS_PER_PAGE, offset)
-        .all()
-
-      const countPromise =
-        cachedTotal !== null
-          ? Promise.resolve({ total: cachedTotal })
-          : env.DB.prepare(
-              `
-                SELECT COUNT(*) as total
-                FROM (
-                  SELECT 1 FROM dict_fts
-                  WHERE dict_fts MATCH ?
-                  GROUP BY origin_name, trans_name
-                );
-              `,
-            )
-              .bind(searchTermFts)
-              .first()
-
-      const [resultsData, countResult] = await Promise.all([resultsPromise, countPromise])
+      const [resultsData, countResult] = await runSearchQueries({
+        env,
+        normalizedQuery,
+        searchTermFts,
+        searchColumn,
+        itemsPerPage: ITEMS_PER_PAGE,
+        offset,
+        cachedTotal,
+      })
 
       const total = countResult?.total || 0
       if (cachedTotal === null) {

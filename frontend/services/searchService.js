@@ -6,7 +6,7 @@ import {
   MAX_QUERY_LENGTH,
   PAGE_CACHE_SIZE,
 } from '../store.js'
-import { matchesModFilter, setupModFilter } from '../utils.js'
+import { getResultKey, matchesModFilter, setupModFilter } from '../utils.js'
 import { requestSearch } from './apiClient.js'
 
 const pageCache = new Map()
@@ -28,7 +28,7 @@ function validateSearchQuery(query) {
 }
 
 function buildSearchKey({ query, mode, page, modFilter }) {
-  return `${query}_${mode}_${page}_${modFilter}`
+  return JSON.stringify([query, mode, page, modFilter])
 }
 
 function buildPageKey({ query, mode, page }) {
@@ -77,7 +77,15 @@ async function getPageData({ query, mode, page, signal, force = false }) {
 }
 
 function resetSearchStateIfNeeded(store, query, mode) {
-  const [lastQuery, lastMode] = store.lastFullSearchKey.split('_')
+  let lastQuery = ''
+  let lastMode = ''
+
+  try {
+    ;[lastQuery, lastMode] = JSON.parse(store.lastFullSearchKey || '[]')
+  } catch {
+    return []
+  }
+
   if (lastQuery !== query || lastMode !== mode) {
     updateState({ modFilterValue: '', allApiResults: [] })
     return []
@@ -105,7 +113,7 @@ async function fetchAllResults(selectedMod) {
     const allResults = [
       ...(page === 1 && store.currentApiResults.length ? store.currentApiResults : []),
     ]
-    const existingKeys = new Set(allResults.map((item) => item.key))
+    const existingKeys = new Set(allResults.map(getResultKey))
 
     const pagesToFetch = Array.from({ length: totalPages }, (_, i) => i + 1).filter(
       (targetPage) => !(targetPage === page && store.currentApiResults.length),
@@ -118,9 +126,10 @@ async function fetchAllResults(selectedMod) {
     )
 
     allPageResults.flat().forEach((item) => {
-      if (!existingKeys.has(item.key)) {
+      const itemKey = getResultKey(item)
+      if (!existingKeys.has(itemKey)) {
         allResults.push(item)
-        existingKeys.add(item.key)
+        existingKeys.add(itemKey)
       }
     })
 
@@ -231,13 +240,14 @@ export async function search(resetPage = false) {
     }
 
     const existing = context.page === 1 ? [] : store.allApiResults
-    const existingKeys = new Set(existing.map((item) => item.key))
+    const existingKeys = new Set(existing.map(getResultKey))
     const merged = context.page === 1 ? [...pageResults] : [...existing]
 
     pageResults.forEach((item) => {
-      if (!existingKeys.has(item.key)) {
+      const itemKey = getResultKey(item)
+      if (!existingKeys.has(itemKey)) {
         merged.push(item)
-        existingKeys.add(item.key)
+        existingKeys.add(itemKey)
       }
     })
 
