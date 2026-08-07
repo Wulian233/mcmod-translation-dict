@@ -3,8 +3,11 @@ name = "SQL-Cleaner"
 version = "1.2.0"
 edition = "2024"
 
+[dependencies]
+encoding_rs = "0.8.35"
+
 [build-dependencies]
-winres = "0.1.12"
+winresource = "0.1.31"
 
 [profile.release]
 opt-level = "z"

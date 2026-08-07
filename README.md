@@ -63,13 +63,15 @@ npm run dev
 
 关于创建 Worker 并链接 D1 数据库请看[官方教程](https://developers.cloudflare.com/d1/get-started/)，下方仅列出上传数据库的处理步骤：
 
-1. 下载原 `.db` 格式的数据库文件，并在 SQLite 官网下载[SQLite Tools](https://www.sqlite.org/2026/sqlite-tools-win-x64-3530200.zip)并解压（此处以 Windows x64 为例）。
+1. 下载原 `.db` 格式的数据库文件，并在 SQLite 官网下载[SQLite Tools](https://www.sqlite.org/2026/sqlite-tools-win-x64-3530400.zip)并解压（此处以 Windows x64 为例）。
 
 2. 在 sqlite3.exe（我们只需要它，其他的可以删除）所在位置新建终端，并输入下面的命令转换格式：
 
 ```shell
-sqlite3 Dict-Sqlite.db .dump > input.sql
+sqlite3 Dict-Sqlite.db ".output input.sql" ".dump"
 ```
+
+请勿在 Windows PowerShell 中使用 `> input.sql` 重定向；让 SQLite 直接写入文件可以保留 `.dump` 的 UTF-8 编码，避免中文乱码。
 
 3. 由于 D1 数据库的限制，我们还需要对数据库文件进行进一步的处理。
    你可以在 [Release](https://github.com/Wulian233/mcmod-translation-dict/releases/tag/sql_cleaner) 里
