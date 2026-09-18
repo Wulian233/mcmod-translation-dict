@@ -1,12 +1,16 @@
 <script setup>
 import { computed, onBeforeUnmount, ref } from 'vue'
 import { useStore, updateState } from '../store.js'
+import { SEARCH_CONFIG } from '../config.js'
 import { applyModFilter } from '../services/searchService.js'
 
 const store = useStore()
 const showSuggestions = ref(false)
-const FILTER_DEBOUNCE_MS = 400
+const FILTER_DEBOUNCE_MS = SEARCH_CONFIG.minIntervalMs
 let filterTimer = null
+let blurTimer = null
+let pendingFilterValue = null
+let isMounted = true
 
 const isFilterVisible = computed(() => store.availableMods.length > 0)
 
@@ -25,38 +29,63 @@ const filteredSuggestions = computed(() => {
     .map((mod) => ({ text: mod, value: mod, type: 'mod' }))
 })
 
+function clearFilterTimer() {
+  if (filterTimer !== null) {
+    clearTimeout(filterTimer)
+    filterTimer = null
+  }
+}
+
+function queueFilter(expectedValue, delay = FILTER_DEBOUNCE_MS) {
+  if (!isMounted) return
+  pendingFilterValue = expectedValue
+  clearFilterTimer()
+
+  filterTimer = setTimeout(() => {
+    filterTimer = null
+    const targetValue = pendingFilterValue
+    pendingFilterValue = null
+    if (!isMounted || targetValue === null) return
+    attemptFilter(targetValue)
+  }, delay)
+}
+
+async function attemptFilter(expectedValue) {
+  if (!isMounted) return
+
+  if (store.modFilterValue.trim() !== expectedValue) {
+    queueFilter(store.modFilterValue.trim())
+    return
+  }
+
+  const result = await applyModFilter()
+  if (!isMounted) return
+
+  const currentValue = store.modFilterValue.trim()
+  if (currentValue !== expectedValue) {
+    queueFilter(currentValue)
+    return
+  }
+
+  if (result?.status === 'throttled' || result?.status === 'busy') {
+    // Keep trying the latest value at the normal interval. One timer at a
+    // time prevents duplicate queued requests and tight retry loops.
+    queueFilter(expectedValue)
+  }
+}
+
 function handleModFilterInput(e) {
   const inputValue = e.target.value
   updateState({ modFilterValue: inputValue })
 
   showSuggestions.value = true
-  scheduleFilter(inputValue.trim())
-}
-
-function scheduleFilter(expectedValue) {
-  clearTimeout(filterTimer)
-  filterTimer = setTimeout(() => {
-    if (store.modFilterValue.trim() !== expectedValue) return
-
-    if (store.searchLoading) {
-      scheduleFilter(expectedValue)
-      return
-    }
-
-    applyModFilter()
-  }, FILTER_DEBOUNCE_MS)
+  queueFilter(inputValue.trim())
 }
 
 function applyFilterNow() {
-  const expectedValue = store.modFilterValue.trim()
-  clearTimeout(filterTimer)
-
-  if (store.searchLoading) {
-    scheduleFilter(expectedValue)
-    return
-  }
-
-  applyModFilter()
+  clearFilterTimer()
+  pendingFilterValue = null
+  attemptFilter(store.modFilterValue.trim())
 }
 
 function selectSuggestion(modValue) {
@@ -72,8 +101,10 @@ function submitTypedFilter() {
 
 function handleBlur() {
   // 延迟隐藏建议，以便点击建议项
-  setTimeout(() => {
-    showSuggestions.value = false
+  if (blurTimer !== null) clearTimeout(blurTimer)
+  blurTimer = setTimeout(() => {
+    blurTimer = null
+    if (isMounted) showSuggestions.value = false
   }, 200)
 }
 
@@ -83,7 +114,13 @@ function handleFocus() {
   }
 }
 
-onBeforeUnmount(() => clearTimeout(filterTimer))
+onBeforeUnmount(() => {
+  isMounted = false
+  clearFilterTimer()
+  if (blurTimer !== null) clearTimeout(blurTimer)
+  blurTimer = null
+  pendingFilterValue = null
+})
 </script>
 
 <template>

@@ -24,9 +24,10 @@ const state = reactive({
 
   // 结果状态
   currentApiResults: [], // 存储当前页从 API 获取的原始结果
-  totalApiMatches: 0, // 已确认的最小匹配数（后端不再执行高成本 COUNT）
+  totalApiMatches: null, // 后端返回的匹配数下界；服务端可能返回 null
+  totalIsExact: false, // totalApiMatches 是否为精确总数
   hasMoreResults: false, // 是否还有下一页
-  allApiResults: [], // 保留用于兼容旧状态，当前仅保存已加载结果
+  pageLimitReached: false, // 是否命中服务端最多 100 页的展示上限
   availableMods: [], // 存储当前搜索结果中所有可用的模组列表（按频率排序）
 
   // UI 状态

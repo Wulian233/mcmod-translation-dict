@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "test": "node --experimental-sqlite --test backend/test/*.test.js frontend/test/*.test.js",
+    "check": "npm test && python -m unittest discover -s backend/test -p \"test_*.py\" && npm run build",
     "format": "prettier --write .",
     "upgrade-deps": "taze patch -I"
   },

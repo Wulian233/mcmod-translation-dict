@@ -35,39 +35,6 @@ export function extractModIds(allModsString) {
     .filter((modId) => modId && modId !== '未知模组')
 }
 
-export function matchesModFilter(item, selectedMod) {
-  if (!selectedMod) return true
-
-  const modIds = extractModIds(item.all_mods)
-  return modIds.some((modId) => modId.toLowerCase() === selectedMod.toLowerCase())
-}
-
-export function selectModFromResult(item, selectedMod) {
-  if (!selectedMod) return item
-
-  const selected = selectedMod.toLowerCase()
-  const mods = String(item.all_mods || '').split(', ')
-  const keys = String(item.all_keys || '').split(',')
-  const curseforges = String(item.all_curseforges || '').split(',')
-  const selectedIndexes = []
-
-  mods.forEach((mod, index) => {
-    const match = mod.match(/^(.*) \(.*\)$/)
-    const modId = (match ? match[1] : mod).trim().toLowerCase()
-    if (modId === selected) selectedIndexes.push(index)
-  })
-
-  if (selectedIndexes.length === 0) return null
-
-  return {
-    ...item,
-    all_mods: selectedIndexes.map((index) => mods[index]).join(', '),
-    all_keys: selectedIndexes.map((index) => keys[index] || '').join(','),
-    all_curseforges: selectedIndexes.map((index) => curseforges[index] || '').join(','),
-    frequency: selectedIndexes.length,
-  }
-}
-
 export function parseQuery(rawQuery) {
   const tokens = []
   const regex = /"([^"]+)"|(\S+)/g
@@ -181,7 +148,8 @@ export function setupModFilter(results, updateState) {
         if (!modFrequency[modId]) {
           modFrequency[modId] = 0
         }
-        // 确保 item.frequency 是数字，否则默认为 1
+        // Use the server's global distinct-mod frequency only for suggestion
+        // ranking; result objects are never rewritten on the client.
         modFrequency[modId] += item.frequency || 1
       }
     })
