@@ -1,10 +1,12 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, ref } from 'vue'
 import { useStore, updateState } from '../store.js'
 import { applyModFilter } from '../services/searchService.js'
 
 const store = useStore()
 const showSuggestions = ref(false)
+const FILTER_DEBOUNCE_MS = 400
+let filterTimer = null
 
 const isFilterVisible = computed(() => store.availableMods.length > 0)
 
@@ -28,17 +30,44 @@ function handleModFilterInput(e) {
   updateState({ modFilterValue: inputValue })
 
   showSuggestions.value = true
+  scheduleFilter(inputValue.trim())
+}
+
+function scheduleFilter(expectedValue) {
+  clearTimeout(filterTimer)
+  filterTimer = setTimeout(() => {
+    if (store.modFilterValue.trim() !== expectedValue) return
+
+    if (store.searchLoading) {
+      scheduleFilter(expectedValue)
+      return
+    }
+
+    applyModFilter()
+  }, FILTER_DEBOUNCE_MS)
+}
+
+function applyFilterNow() {
+  const expectedValue = store.modFilterValue.trim()
+  clearTimeout(filterTimer)
+
+  if (store.searchLoading) {
+    scheduleFilter(expectedValue)
+    return
+  }
+
+  applyModFilter()
 }
 
 function selectSuggestion(modValue) {
   updateState({ modFilterValue: modValue })
   showSuggestions.value = false
-  applyModFilter()
+  applyFilterNow()
 }
 
 function submitTypedFilter() {
   showSuggestions.value = false
-  applyModFilter()
+  applyFilterNow()
 }
 
 function handleBlur() {
@@ -53,6 +82,8 @@ function handleFocus() {
     showSuggestions.value = true
   }
 }
+
+onBeforeUnmount(() => clearTimeout(filterTimer))
 </script>
 
 <template>

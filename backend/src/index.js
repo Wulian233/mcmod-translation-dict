@@ -1,7 +1,7 @@
 const ITEMS_PER_PAGE = 50
 const QUERY_LIMIT = ITEMS_PER_PAGE + 1
 const CACHE_TTL_SECONDS = 60 * 60 * 24 * 7
-const CACHE_VERSION = '2'
+const CACHE_VERSION = '3'
 
 let preferredSchemaAvailable = null
 let bundledSchemaAvailable = null

@@ -35,8 +35,8 @@ function handlePageChange(page) {
         <td colspan="4">{{ resultsMessage }}</td>
       </tr>
 
-      <tr v-else-if="store.modFilterValue && store.totalApiMatches > 0">
-        <td colspan="4" class="small">已筛选模组: {{ store.modFilterValue }}</td>
+      <tr v-else-if="store.appliedModFilter && store.totalApiMatches > 0">
+        <td colspan="4" class="small">已筛选模组: {{ store.appliedModFilter }}</td>
       </tr>
 
       <tr v-for="item in currentResults" :key="getResultKey(item)">

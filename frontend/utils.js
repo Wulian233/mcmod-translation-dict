@@ -42,6 +42,32 @@ export function matchesModFilter(item, selectedMod) {
   return modIds.some((modId) => modId.toLowerCase() === selectedMod.toLowerCase())
 }
 
+export function selectModFromResult(item, selectedMod) {
+  if (!selectedMod) return item
+
+  const selected = selectedMod.toLowerCase()
+  const mods = String(item.all_mods || '').split(', ')
+  const keys = String(item.all_keys || '').split(',')
+  const curseforges = String(item.all_curseforges || '').split(',')
+  const selectedIndexes = []
+
+  mods.forEach((mod, index) => {
+    const match = mod.match(/^(.*) \(.*\)$/)
+    const modId = (match ? match[1] : mod).trim().toLowerCase()
+    if (modId === selected) selectedIndexes.push(index)
+  })
+
+  if (selectedIndexes.length === 0) return null
+
+  return {
+    ...item,
+    all_mods: selectedIndexes.map((index) => mods[index]).join(', '),
+    all_keys: selectedIndexes.map((index) => keys[index] || '').join(','),
+    all_curseforges: selectedIndexes.map((index) => curseforges[index] || '').join(','),
+    frequency: selectedIndexes.length,
+  }
+}
+
 export function parseQuery(rawQuery) {
   const tokens = []
   const regex = /"([^"]+)"|(\S+)/g

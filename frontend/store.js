@@ -20,6 +20,7 @@ const state = reactive({
   lastSearchQuery: '', // 上一次执行搜索时的搜索词（用于高亮）
   searchMode: 'en2zh', // 搜索模式
   modFilterValue: '', // 模组筛选输入框的值
+  appliedModFilter: '', // 最近一次已由后端实际应用的模组筛选
 
   // 结果状态
   currentApiResults: [], // 存储当前页从 API 获取的原始结果

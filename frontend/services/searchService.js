@@ -6,7 +6,7 @@ import {
   MAX_QUERY_LENGTH,
   PAGE_CACHE_SIZE,
 } from '../store.js'
-import { setupModFilter } from '../utils.js'
+import { selectModFromResult, setupModFilter } from '../utils.js'
 import { requestSearch } from './apiClient.js'
 
 const pageCache = new Map()
@@ -75,7 +75,7 @@ function resetModFilterForNewSearch(context) {
 
   if (lastQuery !== context.query || lastMode !== context.mode) {
     context.modFilter = ''
-    updateState({ modFilterValue: '', availableMods: [] })
+    updateState({ modFilterValue: '', appliedModFilter: '', availableMods: [] })
   }
 }
 
@@ -118,13 +118,17 @@ export async function search(resetPage = false) {
     resultsUiMessage: '正在搜索中...',
     searchInfoMessage: '',
     lastSearchQuery: context.query,
+    currentApiResults: [],
   })
 
   const requestStartTime = performance.now()
 
   try {
     const data = await getPageData(context, signal)
-    const pageResults = data?.results ?? []
+    const rawPageResults = data?.results ?? []
+    const pageResults = context.modFilter
+      ? rawPageResults.map((item) => selectModFromResult(item, context.modFilter)).filter(Boolean)
+      : rawPageResults
     const hasMore =
       typeof data?.hasMore === 'boolean'
         ? data.hasMore
@@ -137,6 +141,7 @@ export async function search(resetPage = false) {
       totalApiMatches: data?.total ?? (context.page - 1) * itemsPerPage + pageResults.length,
       hasMoreResults: hasMore,
       allApiResults: pageResults,
+      appliedModFilter: data?.mod ?? context.modFilter,
       resultsUiMessage: pageResults.length === 0 ? '未找到结果' : '',
       lastFullSearchKey: searchKey,
     })

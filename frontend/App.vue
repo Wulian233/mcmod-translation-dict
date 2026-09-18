@@ -15,7 +15,7 @@ const resultsMessage = computed(() => {
   if (store.resultsUiMessage) return store.resultsUiMessage
 
   if (store.currentApiResults.length === 0 && !store.searchLoading) {
-    return store.modFilterValue ? '当前模组筛选下未找到结果。' : '未找到结果'
+    return store.appliedModFilter ? '当前模组筛选下未找到结果。' : '未找到结果'
   }
   return ''
 })
