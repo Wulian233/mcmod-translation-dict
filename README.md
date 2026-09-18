@@ -91,22 +91,20 @@ npx wrangler d1 execute prod-d1-tutorial --remote --file=./Dict-Sqlite.sql
 
 其中，请把 `prod-d1-tutorial` 替换为自己的 D1 数据库名称，`./Dict-Sqlite.sql` 替换为自己的 SQL 文件路径。
 
-5. 在 Cloudflare 网页打开你的 D1 数据库并进入控制台。复制下面的命令并粘贴到对话框，最后点击执行
+5. 构建只读搜索投影和全文索引。每次替换 `dict` 数据后都需要重新执行：
 
-```sql
-CREATE VIRTUAL TABLE dict_fts USING fts5(
-  origin_name,
-  trans_name,
-  content='dict',
-  content_rowid='rowid'
-);
-INSERT INTO dict_fts(rowid, origin_name, trans_name)
-SELECT rowid, origin_name, trans_name FROM dict;
+```shell
+cd backend
+npx wrangler d1 execute prod-d1-tutorial --remote --file=./schema/search-indexes.sql
 ```
+
+该脚本先把相同译文对及其模组信息预聚合到 `dict_search`，再建立普通 FTS5 和
+trigram FTS5 索引。不要把建表脚本放进 Worker 请求路径；它只应在更新数据库时运行一次。
 
 ### 更新数据库方法
 
-浏览器进入存放词典数据的 CloudFlare D1 数据库，点击 Explore Data，并删除除最后一个以外的所有表。之后方法同上。
+浏览器进入存放词典数据的 CloudFlare D1 数据库，点击 Explore Data，替换原始 `dict` 表，
+然后重新执行 `backend/schema/search-indexes.sql`。脚本会自行重建所有搜索表。
 
 ## API 接口文档
 
@@ -132,6 +130,7 @@ SELECT rowid, origin_name, trans_name FROM dict;
 | `q`    | String | 是   | -       | 搜索词（支持高级语法，详见下方）             |
 | `page` | Int    | 否   | `1`     | 当前页码                                     |
 | `mode` | String | 否   | `en2zh` | 搜索模式：`en2zh` (英查中), `zh2en` (中查英) |
+| `mod`  | String | 否   | -       | 只返回包含指定 modid 的译文对                |
 
 #### 高级搜索语法
 
@@ -164,7 +163,10 @@ SELECT rowid, origin_name, trans_name FROM dict;
 
 | 字段名                    | 说明                                                                              |
 | :------------------------ | :-------------------------------------------------------------------------------- |
-| `total`                   | 匹配到的总条目数（去重后的翻译对数量）                                            |
+| `total`                   | 当前已确认的最小匹配数；不再为分页执行高成本的全量 `COUNT(*)`                     |
+| `hasMore`                 | 是否还有下一页                                                                    |
+| `totalIsExact`            | `total` 是否为精确值（到达最后一页时为 `true`）                                   |
+| `usage.rowsRead`          | 本次 D1 查询读取的行数，便于在部署后核对优化效果                                  |
 | `results`                 | 结果数组                                                                          |
 | `results.trans_name`      | 译文名称                                                                          |
 | `results.origin_name`     | 原文名称                                                                          |

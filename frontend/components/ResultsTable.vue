@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 import ModLinks from './ModLinks.vue'
-import { useStore, updateState, itemsPerPage } from '../store.js'
+import { useStore, updateState } from '../store.js'
 import { getResultKey, highlightQuery } from '../utils.js'
 import { search } from '../services/searchService.js'
 
@@ -13,9 +13,8 @@ const store = useStore()
 
 const currentResults = computed(() => store.currentApiResults)
 
-const totalPages = computed(() => Math.ceil(store.totalApiMatches / itemsPerPage))
-
 function handlePageChange(page) {
+  if (page < 1 || (page > store.currentPage && !store.hasMoreResults)) return
   updateState({ currentPage: page })
   search(false)
 }
@@ -37,9 +36,7 @@ function handlePageChange(page) {
       </tr>
 
       <tr v-else-if="store.modFilterValue && store.totalApiMatches > 0">
-        <td colspan="4" class="small">
-          已筛选模组: {{ store.modFilterValue }}，共找到 {{ store.totalApiMatches }} 个结果
-        </td>
+        <td colspan="4" class="small">已筛选模组: {{ store.modFilterValue }}</td>
       </tr>
 
       <tr v-for="item in currentResults" :key="getResultKey(item)">
@@ -68,33 +65,24 @@ function handlePageChange(page) {
   </table>
 
   <div id="pagination" class="d-flex justify-content-center" role="navigation" aria-label="分页">
-    <ul class="pagination" v-if="totalPages > 1 && store.totalApiMatches > 0">
+    <ul
+      class="pagination"
+      v-if="(store.currentPage > 1 || store.hasMoreResults) && store.totalApiMatches > 0"
+    >
       <li class="page-item" :class="{ disabled: store.currentPage === 1 }">
-        <a class="page-link" href="#" @click.prevent="handlePageChange(1)">&laquo;</a>
+        <a class="page-link" href="#" @click.prevent="handlePageChange(store.currentPage - 1)"
+          >上一页</a
+        >
       </li>
 
-      <template v-for="page in totalPages" :key="page">
-        <li
-          v-if="
-            page === 1 ||
-            page === totalPages ||
-            (page >= store.currentPage - 2 && page <= store.currentPage + 2)
-          "
-          class="page-item"
-          :class="{ active: page === store.currentPage }"
-        >
-          <a class="page-link" href="#" @click.prevent="handlePageChange(page)">{{ page }}</a>
-        </li>
-        <li
-          v-else-if="page === store.currentPage - 3 || page === store.currentPage + 3"
-          class="page-item disabled"
-        >
-          <span class="page-link">...</span>
-        </li>
-      </template>
+      <li class="page-item active" aria-current="page">
+        <span class="page-link">第 {{ store.currentPage }} 页</span>
+      </li>
 
-      <li class="page-item" :class="{ disabled: store.currentPage === totalPages }">
-        <a class="page-link" href="#" @click.prevent="handlePageChange(totalPages)">&raquo;</a>
+      <li class="page-item" :class="{ disabled: !store.hasMoreResults }">
+        <a class="page-link" href="#" @click.prevent="handlePageChange(store.currentPage + 1)"
+          >下一页</a
+        >
       </li>
     </ul>
   </div>

@@ -1,2 +1,4 @@
+allowBuilds:
+  pnpm: true
 minimumReleaseAgeExclude:
   - vite@8.2.1

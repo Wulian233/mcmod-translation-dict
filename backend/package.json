@@ -1,14 +1,15 @@
 {
   "name": "mcmod-translation-dict-api",
   "private": true,
+  "type": "module",
   "scripts": {
     "deploy": "wrangler deploy",
     "dev": "wrangler dev",
     "upgrade-deps": "taze patch -I"
   },
   "devDependencies": {
-    "pnpm": "^11.20.0",
-    "taze": "^20.0.0",
-    "wrangler": "^4.119.0"
+    "pnpm": "^12.4.2",
+    "taze": "^21.1.0",
+    "wrangler": "^4.134.0"
   }
 }

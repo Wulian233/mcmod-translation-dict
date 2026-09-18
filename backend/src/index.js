@@ -1,34 +1,15 @@
 const ITEMS_PER_PAGE = 50
+const QUERY_LIMIT = ITEMS_PER_PAGE + 1
 const CACHE_TTL_SECONDS = 60 * 60 * 24 * 7
-const COUNT_CACHE_TTL_MS = 5 * 60 * 1000
-const COUNT_CACHE_MAX_ENTRIES = 200
 
-const countCache = new Map()
+let preferredSchemaAvailable = null
+let bundledSchemaAvailable = null
 
-function isMissingOptimizedTableError(err) {
-  return /no such table:\s*(dict_mod_bundle|dict_bundle_fts)/i.test(err?.message || '')
-}
-
-function setCountCache(key, total) {
-  if (countCache.has(key)) countCache.delete(key)
-  countCache.set(key, { total, expiresAt: Date.now() + COUNT_CACHE_TTL_MS })
-
-  if (countCache.size > COUNT_CACHE_MAX_ENTRIES) {
-    const oldestKey = countCache.keys().next().value
-    countCache.delete(oldestKey)
-  }
-}
-
-function getCountCache(key) {
-  const cached = countCache.get(key)
-  if (!cached) return null
-
-  if (cached.expiresAt < Date.now()) {
-    countCache.delete(key)
-    return null
-  }
-
-  return cached.total
+function isMissingTableError(err, tableNames) {
+  const message = err?.message || ''
+  return tableNames.some((tableName) =>
+    new RegExp(`no such table:\\s*(?:main\\.)?${tableName}`, 'i').test(message),
+  )
 }
 
 function buildHeaders() {
@@ -44,6 +25,12 @@ function buildHeaders() {
 function validateQuery(query) {
   if (!query || query.trim() === '') return '查询参数不能为空'
   if (query.length > 50) return '搜索词长度不能超过50个字符'
+  return null
+}
+
+function validateModFilter(mod) {
+  if (mod.length > 100) return '模组 ID 长度不能超过100个字符'
+  if (mod.includes(',')) return '模组 ID 不能包含逗号'
   return null
 }
 
@@ -70,8 +57,7 @@ function getCjkSearchToken(token) {
 export function buildSearchPlan(raw, column) {
   const ftsIncludeParts = []
   const ftsExcludeParts = []
-  const sqlConditions = []
-  const sqlParams = []
+  const substringFilters = []
   let includeCount = 0
   const pattern = /"([^"]+)"|\S+/g
   let match
@@ -82,64 +68,51 @@ export function buildSearchPlan(raw, column) {
 
     const isExclude = token.startsWith('-')
     if (isExclude) token = token.slice(1)
-
     if (!token) continue
 
     const cjkSearchToken = isPhrase ? token : getCjkSearchToken(token)
-    const tokenHasCjk = hasCjk(cjkSearchToken)
-    let expr
-
-    if (isPhrase && tokenHasCjk) {
-      expr = `${column} ${isExclude ? 'NOT ' : ''}LIKE ? ESCAPE '\\'`
-      sqlConditions.push(expr)
-      sqlParams.push(`%${escapeLike(cjkSearchToken)}%`)
+    if (hasCjk(cjkSearchToken)) {
+      substringFilters.push({
+        exclude: isExclude,
+        value: `%${escapeLike(cjkSearchToken)}%`,
+      })
       if (!isExclude) includeCount += 1
       continue
-    } else if (isPhrase) {
-      expr = `${column}:${quoteFts(token)}`
+    }
+
+    let expression
+    if (isPhrase) {
+      expression = `${column}:${quoteFts(token)}`
     } else if (token.endsWith('+')) {
       const base = token.slice(0, -1)
       if (!base) continue
-      if (hasCjk(base)) {
-        expr = `${column} ${isExclude ? 'NOT ' : ''}LIKE ? ESCAPE '\\'`
-        sqlConditions.push(expr)
-        sqlParams.push(`%${escapeLike(base)}%`)
-        if (!isExclude) includeCount += 1
-        continue
-      }
-      expr = `(${column}:${quoteFts(base)}* NOT ${column}:${quoteFts(base)})`
-    } else if (tokenHasCjk) {
-      expr = `${column} ${isExclude ? 'NOT ' : ''}LIKE ? ESCAPE '\\'`
-      sqlConditions.push(expr)
-      sqlParams.push(`%${escapeLike(cjkSearchToken)}%`)
-      if (!isExclude) includeCount += 1
-      continue
+      expression = `(${column}:${quoteFts(base)}* NOT ${column}:${quoteFts(base)})`
     } else if (token.endsWith('*')) {
       const base = token.slice(0, -1)
       if (!base) continue
-      expr = `${column}:${quoteFts(base)}*`
+      expression = `${column}:${quoteFts(base)}*`
     } else {
-      expr = `${column}:${quoteFts(token)}`
+      expression = `${column}:${quoteFts(token)}`
     }
 
     if (isExclude) {
-      ftsExcludeParts.push(expr)
+      ftsExcludeParts.push(expression)
     } else {
-      ftsIncludeParts.push(expr)
+      ftsIncludeParts.push(expression)
       includeCount += 1
     }
   }
 
   if (includeCount === 0) {
-    return { ftsQuery: '', sqlConditions: [], sqlParams: [] }
+    return { ftsQuery: '', ftsExcludeQuery: '', substringFilters: [] }
   }
 
-  const ftsQuery =
-    ftsIncludeParts.length === 0
-      ? ''
-      : [...ftsIncludeParts, ...ftsExcludeParts.map((expr) => `NOT ${expr}`)].join(' ')
+  const ftsQuery = ftsIncludeParts.length
+    ? [...ftsIncludeParts, ...ftsExcludeParts.map((part) => `NOT ${part}`)].join(' ')
+    : ''
+  const ftsExcludeQuery = ftsIncludeParts.length ? '' : ftsExcludeParts.join(' OR ')
 
-  return { ftsQuery, sqlConditions, sqlParams }
+  return { ftsQuery, ftsExcludeQuery, substringFilters }
 }
 
 function jsonResponse(data, status, headers) {
@@ -149,7 +122,65 @@ function jsonResponse(data, status, headers) {
   })
 }
 
-const optimizedResultsQueryWithFts = `
+function buildPreferredSearch(searchPlan, searchColumn, hasModFilter) {
+  const joins = []
+  const conditions = []
+  const params = []
+  const positiveSubstringFilters = searchPlan.substringFilters.filter((filter) => !filter.exclude)
+  const negativeSubstringFilters = searchPlan.substringFilters.filter((filter) => filter.exclude)
+
+  if (searchPlan.ftsQuery) {
+    joins.push('JOIN dict_search_fts ON dict_search_fts.rowid = s.rowid')
+    conditions.push('dict_search_fts MATCH ?')
+    params.push(searchPlan.ftsQuery)
+  }
+
+  if (positiveSubstringFilters.length) {
+    joins.push('JOIN dict_search_trigram ON dict_search_trigram.rowid = s.rowid')
+    for (const filter of positiveSubstringFilters) {
+      conditions.push(`dict_search_trigram.${searchColumn} LIKE ? ESCAPE '\\'`)
+      params.push(filter.value)
+    }
+  }
+
+  for (const filter of negativeSubstringFilters) {
+    conditions.push(`s.${searchColumn} NOT LIKE ? ESCAPE '\\'`)
+    params.push(filter.value)
+  }
+
+  if (searchPlan.ftsExcludeQuery) {
+    conditions.push(`s.rowid NOT IN (
+      SELECT rowid FROM dict_search_fts WHERE dict_search_fts MATCH ?
+    )`)
+    params.push(searchPlan.ftsExcludeQuery)
+  }
+
+  if (hasModFilter) {
+    conditions.push(`INSTR(',' || LOWER(s.all_modids) || ',', ',' || LOWER(?) || ',') > 0`)
+  }
+
+  const sql = `
+    SELECT
+      s.trans_name,
+      s.origin_name,
+      s.all_mods,
+      s.all_keys,
+      s.all_curseforges,
+      s.frequency
+    FROM dict_search AS s
+    ${joins.join('\n')}
+    WHERE ${conditions.join(' AND ')}
+    ORDER BY
+      CASE WHEN LOWER(s.${searchColumn}) = LOWER(?) THEN 1 ELSE 0 END DESC,
+      s.frequency DESC,
+      s.origin_name
+    LIMIT ? OFFSET ?;
+  `
+
+  return { sql, params }
+}
+
+const bundledResultsQueryWithFts = `
   WITH RankedMatches AS (
     SELECT
       b.trans_name,
@@ -157,10 +188,7 @@ const optimizedResultsQueryWithFts = `
       b.mod_with_ver,
       b.unique_keys,
       b.unique_cfs,
-      CASE
-        WHEN LOWER(b.__SEARCH_COLUMN__) = LOWER(?) THEN 1
-        ELSE 0
-      END AS exact_match
+      CASE WHEN LOWER(b.__SEARCH_COLUMN__) = LOWER(?) THEN 1 ELSE 0 END AS exact_match
     FROM dict_bundle_fts
     JOIN dict_mod_bundle AS b ON b.rowid = dict_bundle_fts.rowid
     WHERE dict_bundle_fts MATCH ? __SQL_FILTER__
@@ -174,11 +202,12 @@ const optimizedResultsQueryWithFts = `
     COUNT(*) AS frequency
   FROM RankedMatches
   GROUP BY trans_name, origin_name
+  __BUNDLED_MOD_HAVING__
   ORDER BY MAX(exact_match) DESC, frequency DESC, origin_name
   LIMIT ? OFFSET ?;
 `
 
-const optimizedResultsQueryWithoutFts = `
+const bundledResultsQueryWithoutFts = `
   WITH RankedMatches AS (
     SELECT
       b.trans_name,
@@ -186,12 +215,9 @@ const optimizedResultsQueryWithoutFts = `
       b.mod_with_ver,
       b.unique_keys,
       b.unique_cfs,
-      CASE
-        WHEN LOWER(b.__SEARCH_COLUMN__) = LOWER(?) THEN 1
-        ELSE 0
-      END AS exact_match
+      CASE WHEN LOWER(b.__SEARCH_COLUMN__) = LOWER(?) THEN 1 ELSE 0 END AS exact_match
     FROM dict_mod_bundle AS b
-    WHERE __SQL_FILTER__
+    WHERE __SQL_FILTER__ __BUNDLED_FTS_EXCLUDE__
   )
   SELECT
     trans_name,
@@ -202,29 +228,9 @@ const optimizedResultsQueryWithoutFts = `
     COUNT(*) AS frequency
   FROM RankedMatches
   GROUP BY trans_name, origin_name
+  __BUNDLED_MOD_HAVING__
   ORDER BY MAX(exact_match) DESC, frequency DESC, origin_name
   LIMIT ? OFFSET ?;
-`
-
-const optimizedCountQueryWithFts = `
-  SELECT COUNT(*) as total
-  FROM (
-    SELECT 1
-    FROM dict_bundle_fts
-    JOIN dict_mod_bundle AS b ON b.rowid = dict_bundle_fts.rowid
-    WHERE dict_bundle_fts MATCH ? __SQL_FILTER__
-    GROUP BY b.trans_name, b.origin_name
-  );
-`
-
-const optimizedCountQueryWithoutFts = `
-  SELECT COUNT(*) as total
-  FROM (
-    SELECT 1
-    FROM dict_mod_bundle AS b
-    WHERE __SQL_FILTER__
-    GROUP BY b.trans_name, b.origin_name
-  );
 `
 
 const legacyResultsQueryWithFts = `
@@ -236,10 +242,7 @@ const legacyResultsQueryWithFts = `
       d.version,
       d.key,
       d.curseforge,
-      CASE
-        WHEN LOWER(d.__SEARCH_COLUMN__) = LOWER(?) THEN 1
-        ELSE 0
-      END AS exact_match
+      CASE WHEN LOWER(d.__SEARCH_COLUMN__) = LOWER(?) THEN 1 ELSE 0 END AS exact_match
     FROM dict_fts
     JOIN dict AS d ON d.rowid = dict_fts.rowid
     WHERE dict_fts MATCH ? __SQL_FILTER__
@@ -248,6 +251,7 @@ const legacyResultsQueryWithFts = `
     SELECT
       trans_name,
       origin_name,
+      modid,
       MAX(exact_match) AS exact_match,
       modid || ' (' || GROUP_CONCAT(version, '/') || ')' AS mod_with_ver,
       GROUP_CONCAT(DISTINCT "key") AS unique_keys,
@@ -264,6 +268,7 @@ const legacyResultsQueryWithFts = `
     COUNT(*) AS frequency
   FROM ModBundles
   GROUP BY trans_name, origin_name
+  __LEGACY_MOD_HAVING__
   ORDER BY MAX(exact_match) DESC, frequency DESC, origin_name
   LIMIT ? OFFSET ?;
 `
@@ -277,17 +282,15 @@ const legacyResultsQueryWithoutFts = `
       d.version,
       d.key,
       d.curseforge,
-      CASE
-        WHEN LOWER(d.__SEARCH_COLUMN__) = LOWER(?) THEN 1
-        ELSE 0
-      END AS exact_match
+      CASE WHEN LOWER(d.__SEARCH_COLUMN__) = LOWER(?) THEN 1 ELSE 0 END AS exact_match
     FROM dict AS d
-    WHERE __SQL_FILTER__
+    WHERE __SQL_FILTER__ __LEGACY_FTS_EXCLUDE__
   ),
   ModBundles AS (
     SELECT
       trans_name,
       origin_name,
+      modid,
       MAX(exact_match) AS exact_match,
       modid || ' (' || GROUP_CONCAT(version, '/') || ')' AS mod_with_ver,
       GROUP_CONCAT(DISTINCT "key") AS unique_keys,
@@ -304,95 +307,143 @@ const legacyResultsQueryWithoutFts = `
     COUNT(*) AS frequency
   FROM ModBundles
   GROUP BY trans_name, origin_name
+  __LEGACY_MOD_HAVING__
   ORDER BY MAX(exact_match) DESC, frequency DESC, origin_name
   LIMIT ? OFFSET ?;
 `
 
-const legacyCountQueryWithFts = `
-  SELECT COUNT(*) as total
-  FROM (
-    WITH ModBundles AS (
-      SELECT d.trans_name, d.origin_name, d.modid
-      FROM dict_fts
-      JOIN dict AS d ON d.rowid = dict_fts.rowid
-      WHERE dict_fts MATCH ? __SQL_FILTER__
-      GROUP BY d.trans_name, d.origin_name, d.modid
-    )
-    SELECT 1
-    FROM ModBundles
-    GROUP BY trans_name, origin_name
-  );
-`
+function buildFallbackSearch({
+  query,
+  searchPlan,
+  searchColumn,
+  normalizedQuery,
+  modFilter,
+  itemsPerPage,
+  offset,
+  bundled,
+}) {
+  const hasFtsQuery = Boolean(searchPlan.ftsQuery)
+  const alias = bundled ? 'b' : 'd'
+  const substringConditions = searchPlan.substringFilters.map(
+    (filter) => `${alias}.${searchColumn} ${filter.exclude ? 'NOT ' : ''}LIKE ? ESCAPE '\\'`,
+  )
+  const sqlFilter = substringConditions.length
+    ? `${hasFtsQuery ? ' AND ' : ''}${substringConditions.join(' AND ')}`
+    : hasFtsQuery
+      ? ''
+      : '1 = 1'
+  const ftsTable = bundled ? 'dict_bundle_fts' : 'dict_fts'
+  const ftsExclude = searchPlan.ftsExcludeQuery
+    ? ` AND ${alias}.rowid NOT IN (SELECT rowid FROM ${ftsTable} WHERE ${ftsTable} MATCH ?)`
+    : ''
+  const hasModFilter = Boolean(modFilter)
+  const bundledModHaving = hasModFilter
+    ? `HAVING MAX(CASE
+        WHEN LOWER(SUBSTR(mod_with_ver, 1, INSTR(mod_with_ver, ' (') - 1)) = LOWER(?)
+        THEN 1 ELSE 0 END) = 1`
+    : ''
+  const legacyModHaving = hasModFilter
+    ? 'HAVING MAX(CASE WHEN LOWER(modid) = LOWER(?) THEN 1 ELSE 0 END) = 1'
+    : ''
 
-const legacyCountQueryWithoutFts = `
-  SELECT COUNT(*) as total
-  FROM (
-    WITH ModBundles AS (
-      SELECT d.trans_name, d.origin_name, d.modid
-      FROM dict AS d
-      WHERE __SQL_FILTER__
-      GROUP BY d.trans_name, d.origin_name, d.modid
-    )
-    SELECT 1
-    FROM ModBundles
-    GROUP BY trans_name, origin_name
-  );
-`
+  const sql = query
+    .replaceAll('__SEARCH_COLUMN__', searchColumn)
+    .replaceAll('__SQL_FILTER__', sqlFilter)
+    .replaceAll('__BUNDLED_FTS_EXCLUDE__', bundled ? ftsExclude : '')
+    .replaceAll('__LEGACY_FTS_EXCLUDE__', bundled ? '' : ftsExclude)
+    .replaceAll('__BUNDLED_MOD_HAVING__', bundledModHaving)
+    .replaceAll('__LEGACY_MOD_HAVING__', legacyModHaving)
 
-async function runSearchQueries({
+  const params = [normalizedQuery]
+  if (hasFtsQuery) params.push(searchPlan.ftsQuery)
+  params.push(...searchPlan.substringFilters.map((filter) => filter.value))
+  if (searchPlan.ftsExcludeQuery) params.push(searchPlan.ftsExcludeQuery)
+  if (hasModFilter) params.push(modFilter)
+  params.push(itemsPerPage, offset)
+
+  return { sql, params }
+}
+
+async function runSearchQuery({
   env,
   normalizedQuery,
   searchPlan,
   searchColumn,
-  itemsPerPage,
+  modFilter,
   offset,
-  cachedTotal,
 }) {
-  const hasFtsQuery = Boolean(searchPlan.ftsQuery)
-  const sqlFilter = searchPlan.sqlConditions.length
-    ? ` AND ${searchPlan.sqlConditions.join(' AND ')}`
-    : ''
-  const standaloneSqlFilter = searchPlan.sqlConditions.length
-    ? searchPlan.sqlConditions.join(' AND ')
-    : '1 = 1'
-  const searchParams = hasFtsQuery
-    ? [searchPlan.ftsQuery, ...searchPlan.sqlParams]
-    : [...searchPlan.sqlParams]
+  if (preferredSchemaAvailable !== false) {
+    const preferred = buildPreferredSearch(searchPlan, searchColumn, Boolean(modFilter))
+    const params = [
+      ...preferred.params,
+      ...(modFilter ? [modFilter] : []),
+      normalizedQuery,
+      QUERY_LIMIT,
+      offset,
+    ]
 
-  const buildQuery = (query) =>
-    query
-      .replaceAll('__SEARCH_COLUMN__', searchColumn)
-      .replaceAll('__SQL_FILTER__', hasFtsQuery ? sqlFilter : standaloneSqlFilter)
-
-  const bindResults = (query) =>
-    env.DB.prepare(buildQuery(query)).bind(normalizedQuery, ...searchParams, itemsPerPage, offset)
-
-  const bindCount = (query) => env.DB.prepare(buildQuery(query)).bind(...searchParams)
-
-  const runQueryPair = async (resultsQuery, countQuery) => {
-    const resultsStatement = bindResults(resultsQuery)
-
-    if (cachedTotal !== null) {
-      const resultsData = await resultsStatement.all()
-      return [resultsData, { total: cachedTotal }]
+    try {
+      const result = await env.DB.prepare(preferred.sql)
+        .bind(...params)
+        .all()
+      preferredSchemaAvailable = true
+      return result
+    } catch (err) {
+      if (!isMissingTableError(err, ['dict_search', 'dict_search_fts', 'dict_search_trigram'])) {
+        throw err
+      }
+      preferredSchemaAvailable = false
     }
-
-    const [resultsData, countData] = await env.DB.batch([resultsStatement, bindCount(countQuery)])
-    return [resultsData, countData.results?.[0] ?? { total: 0 }]
   }
 
-  try {
-    return await runQueryPair(
-      hasFtsQuery ? optimizedResultsQueryWithFts : optimizedResultsQueryWithoutFts,
-      hasFtsQuery ? optimizedCountQueryWithFts : optimizedCountQueryWithoutFts,
-    )
-  } catch (err) {
-    if (!isMissingOptimizedTableError(err)) throw err
-    return runQueryPair(
-      hasFtsQuery ? legacyResultsQueryWithFts : legacyResultsQueryWithoutFts,
-      hasFtsQuery ? legacyCountQueryWithFts : legacyCountQueryWithoutFts,
-    )
+  const hasFtsQuery = Boolean(searchPlan.ftsQuery)
+  if (bundledSchemaAvailable !== false) {
+    const fallback = buildFallbackSearch({
+      query: hasFtsQuery ? bundledResultsQueryWithFts : bundledResultsQueryWithoutFts,
+      searchPlan,
+      searchColumn,
+      normalizedQuery,
+      modFilter,
+      itemsPerPage: QUERY_LIMIT,
+      offset,
+      bundled: true,
+    })
+
+    try {
+      const result = await env.DB.prepare(fallback.sql)
+        .bind(...fallback.params)
+        .all()
+      bundledSchemaAvailable = true
+      return result
+    } catch (err) {
+      if (!isMissingTableError(err, ['dict_mod_bundle', 'dict_bundle_fts'])) throw err
+      bundledSchemaAvailable = false
+    }
   }
+
+  const fallback = buildFallbackSearch({
+    query: hasFtsQuery ? legacyResultsQueryWithFts : legacyResultsQueryWithoutFts,
+    searchPlan,
+    searchColumn,
+    normalizedQuery,
+    modFilter,
+    itemsPerPage: QUERY_LIMIT,
+    offset,
+    bundled: false,
+  })
+  return env.DB.prepare(fallback.sql)
+    .bind(...fallback.params)
+    .all()
+}
+
+function buildCacheKey(request, normalizedQuery, page, mode, modFilter) {
+  const url = new URL(request.url)
+  url.search = ''
+  url.searchParams.set('q', normalizedQuery)
+  url.searchParams.set('page', String(page))
+  url.searchParams.set('mode', mode)
+  if (modFilter) url.searchParams.set('mod', modFilter.toLowerCase())
+  return new Request(url.toString(), { method: 'GET' })
 }
 
 export default {
@@ -401,61 +452,59 @@ export default {
     const { pathname: path, searchParams } = url
     const headers = buildHeaders()
 
-    if (request.method === 'OPTIONS') {
-      return new Response(null, { headers })
-    }
-
-    if (path !== '/search') {
-      return new Response('Not Found', { status: 404, headers })
-    }
+    if (request.method === 'OPTIONS') return new Response(null, { headers })
+    if (request.method !== 'GET')
+      return new Response('Method Not Allowed', { status: 405, headers })
+    if (path !== '/search') return new Response('Not Found', { status: 404, headers })
 
     const query = searchParams.get('q')
     const rawPage = Number.parseInt(searchParams.get('page') || '1', 10)
     const page = Number.isFinite(rawPage) && rawPage > 0 ? rawPage : 1
     const mode = searchParams.get('mode') === 'zh2en' ? 'zh2en' : 'en2zh'
+    const modFilter = (searchParams.get('mod') || '').trim()
     const offset = (page - 1) * ITEMS_PER_PAGE
 
-    const error = validateQuery(query)
+    const error = validateQuery(query) || validateModFilter(modFilter)
     if (error) return jsonResponse({ error }, 400, headers)
 
     const searchColumn = mode === 'en2zh' ? 'origin_name' : 'trans_name'
     const normalizedQuery = query.trim()
     const searchPlan = buildSearchPlan(normalizedQuery, searchColumn)
-    if (!searchPlan.ftsQuery && searchPlan.sqlConditions.length === 0) {
+    if (!searchPlan.ftsQuery && searchPlan.substringFilters.length === 0) {
       return jsonResponse({ error: '搜索词不能只包含排除条件' }, 400, headers)
     }
 
     const cache = caches.default
-    const cacheKey = new Request(request.url, request)
+    const cacheKey = buildCacheKey(request, normalizedQuery, page, mode, modFilter)
     const cached = await cache.match(cacheKey)
     if (cached) return cached
 
     try {
-      const countKey = `${mode}::${JSON.stringify(searchPlan)}`
-      const cachedTotal = getCountCache(countKey)
-
-      const [resultsData, countResult] = await runSearchQueries({
+      const resultsData = await runSearchQuery({
         env,
         normalizedQuery,
         searchPlan,
         searchColumn,
-        itemsPerPage: ITEMS_PER_PAGE,
+        modFilter,
         offset,
-        cachedTotal,
       })
+      const fetchedResults = resultsData.results || []
+      const hasMore = fetchedResults.length > ITEMS_PER_PAGE
+      const results = hasMore ? fetchedResults.slice(0, ITEMS_PER_PAGE) : fetchedResults
 
-      const total = countResult?.total || 0
-      if (cachedTotal === null) {
-        setCountCache(countKey, total)
-      }
-
+      // Backwards-compatible lower bound. Exact COUNT(*) doubled reads on broad searches.
+      const total = offset + results.length + (hasMore ? 1 : 0)
       const response = jsonResponse(
         {
-          query,
-          results: resultsData.results || [],
+          query: normalizedQuery,
+          results,
           total,
+          totalIsExact: !hasMore,
+          hasMore,
           page,
           mode,
+          mod: modFilter,
+          usage: { rowsRead: resultsData.meta?.rows_read ?? null },
         },
         200,
         headers,

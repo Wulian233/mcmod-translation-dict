@@ -23,8 +23,9 @@ const state = reactive({
 
   // 结果状态
   currentApiResults: [], // 存储当前页从 API 获取的原始结果
-  totalApiMatches: 0, // 存储 API 返回的总匹配条目数
-  allApiResults: [], // 存储所有页面的结果（用于模组筛选）
+  totalApiMatches: 0, // 已确认的最小匹配数（后端不再执行高成本 COUNT）
+  hasMoreResults: false, // 是否还有下一页
+  allApiResults: [], // 保留用于兼容旧状态，当前仅保存已加载结果
   availableMods: [], // 存储当前搜索结果中所有可用的模组列表（按频率排序）
 
   // UI 状态

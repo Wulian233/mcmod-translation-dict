@@ -28,17 +28,15 @@ function handleModFilterInput(e) {
   updateState({ modFilterValue: inputValue })
 
   showSuggestions.value = true
-
-  if (store.currentPage !== 1) {
-    updateState({ currentPage: 1 })
-  }
-
-  // 立即应用筛选，显示筛选后的结果
-  applyModFilter()
 }
 
 function selectSuggestion(modValue) {
   updateState({ modFilterValue: modValue })
+  showSuggestions.value = false
+  applyModFilter()
+}
+
+function submitTypedFilter() {
   showSuggestions.value = false
   applyModFilter()
 }
@@ -69,6 +67,7 @@ function handleFocus() {
         autocomplete="off"
         :value="store.modFilterValue"
         @input="handleModFilterInput"
+        @keydown.enter.prevent="submitTypedFilter"
         @blur="handleBlur"
         @focus="handleFocus"
       />

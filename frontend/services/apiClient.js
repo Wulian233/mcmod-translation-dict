@@ -1,7 +1,9 @@
 import { API_BASE_URL } from '../store.js'
 
-export async function requestSearch({ query, page, mode, signal }) {
-  const url = `${API_BASE_URL}/search?q=${encodeURIComponent(query)}&page=${page}&mode=${mode}`
+export async function requestSearch({ query, page, mode, modFilter, signal }) {
+  const params = new URLSearchParams({ q: query, page: String(page), mode })
+  if (modFilter) params.set('mod', modFilter)
+  const url = `${API_BASE_URL}/search?${params}`
   const response = await fetch(url, { signal })
 
   if (!response.ok) {
