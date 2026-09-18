@@ -166,7 +166,6 @@ trigram FTS5 索引。不要把建表脚本放进 Worker 请求路径；它只�
 | `total`                   | 当前已确认的最小匹配数；不再为分页执行高成本的全量 `COUNT(*)`                     |
 | `hasMore`                 | 是否还有下一页                                                                    |
 | `totalIsExact`            | `total` 是否为精确值（到达最后一页时为 `true`）                                   |
-| `usage.rowsRead`          | 本次 D1 查询读取的行数，便于在部署后核对优化效果                                  |
 | `results`                 | 结果数组                                                                          |
 | `results.trans_name`      | 译文名称                                                                          |
 | `results.origin_name`     | 原文名称                                                                          |

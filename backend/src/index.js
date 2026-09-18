@@ -1,6 +1,7 @@
 const ITEMS_PER_PAGE = 50
 const QUERY_LIMIT = ITEMS_PER_PAGE + 1
 const CACHE_TTL_SECONDS = 60 * 60 * 24 * 7
+const CACHE_VERSION = '2'
 
 let preferredSchemaAvailable = null
 let bundledSchemaAvailable = null
@@ -120,6 +121,32 @@ function jsonResponse(data, status, headers) {
     status,
     headers: { ...headers, 'Content-Type': 'application/json' },
   })
+}
+
+export function filterResultForMod(result, modFilter) {
+  if (!modFilter) return result
+
+  const selectedMod = modFilter.toLowerCase()
+  const mods = String(result.all_mods || '').split(', ')
+  const keys = String(result.all_keys || '').split(',')
+  const curseforges = String(result.all_curseforges || '').split(',')
+  const selectedIndexes = []
+
+  mods.forEach((mod, index) => {
+    const match = mod.match(/^(.*) \(.*\)$/)
+    const modId = (match ? match[1] : mod).trim().toLowerCase()
+    if (modId === selectedMod) selectedIndexes.push(index)
+  })
+
+  if (selectedIndexes.length === 0) return null
+
+  return {
+    ...result,
+    all_mods: selectedIndexes.map((index) => mods[index]).join(', '),
+    all_keys: selectedIndexes.map((index) => keys[index] || '').join(','),
+    all_curseforges: selectedIndexes.map((index) => curseforges[index] || '').join(','),
+    frequency: selectedIndexes.length,
+  }
 }
 
 function buildPreferredSearch(searchPlan, searchColumn, hasModFilter) {
@@ -443,6 +470,7 @@ function buildCacheKey(request, normalizedQuery, page, mode, modFilter) {
   url.searchParams.set('page', String(page))
   url.searchParams.set('mode', mode)
   if (modFilter) url.searchParams.set('mod', modFilter.toLowerCase())
+  url.searchParams.set('_cache', CACHE_VERSION)
   return new Request(url.toString(), { method: 'GET' })
 }
 
@@ -488,7 +516,9 @@ export default {
         modFilter,
         offset,
       })
-      const fetchedResults = resultsData.results || []
+      const fetchedResults = (resultsData.results || [])
+        .map((result) => filterResultForMod(result, modFilter))
+        .filter(Boolean)
       const hasMore = fetchedResults.length > ITEMS_PER_PAGE
       const results = hasMore ? fetchedResults.slice(0, ITEMS_PER_PAGE) : fetchedResults
 
@@ -504,7 +534,6 @@ export default {
           page,
           mode,
           mod: modFilter,
-          usage: { rowsRead: resultsData.meta?.rows_read ?? null },
         },
         200,
         headers,

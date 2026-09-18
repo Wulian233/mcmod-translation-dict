@@ -129,14 +129,10 @@ export async function search(resetPage = false) {
       typeof data?.hasMore === 'boolean'
         ? data.hasMore
         : pageResults.length === itemsPerPage && data.total > context.page * itemsPerPage
-    const rowsRead = data?.usage?.rowsRead
     const timing = `搜索耗时: ${(performance.now() - requestStartTime).toFixed(0)} 毫秒`
 
     updateState({
-      searchInfoMessage:
-        Number.isFinite(rowsRead) && rowsRead >= 0
-          ? `${timing}，数据库读取: ${rowsRead} 行`
-          : timing,
+      searchInfoMessage: timing,
       currentApiResults: pageResults,
       totalApiMatches: data?.total ?? (context.page - 1) * itemsPerPage + pageResults.length,
       hasMoreResults: hasMore,
