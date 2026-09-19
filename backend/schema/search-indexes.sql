@@ -1,9 +1,8 @@
--- Rebuild the read-optimized search projection after importing/replacing `dict`.
--- This is intentionally a deployment step, never something the Worker runs per request.
-
-DROP TABLE IF EXISTS dict_search_trigram;
-DROP TABLE IF EXISTS dict_search_fts;
-DROP TABLE IF EXISTS dict_search;
+-- Bootstrap ONLY into an empty, local SQLite database containing `dict`.
+-- Do not run this full build against D1 Free: projection and FTS writes count
+-- towards its 100,000-row daily write allowance.
+-- Existing tables intentionally cause an error instead of being destroyed.
+-- For updates, build locally and use tools/search_snapshot.py to prepare a delta.
 
 CREATE TABLE dict_search AS
 WITH ModBundles AS (
@@ -47,9 +46,9 @@ INSERT INTO dict_search_fts(rowid, origin_name, trans_name)
 SELECT rowid, origin_name, trans_name
 FROM dict_search;
 
--- Trigram makes LIKE '%关键词%' index-backed when the pattern contains at least
--- three consecutive Unicode characters. One/two-character searches still scan
--- dict_search, which is much smaller than the raw dict table.
+-- Trigram MATCH narrows literal substrings with at least three Unicode characters.
+-- One/two-character searches still scan the projection when no other positive
+-- search term can narrow the candidates.
 CREATE VIRTUAL TABLE dict_search_trigram USING fts5(
   origin_name,
   trans_name,

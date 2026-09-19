@@ -5,6 +5,8 @@
 .LSOverride
 
 *.db
+*.sqlite
+__pycache__/
 *.sql
 !backend/schema/*.sql
 dist
