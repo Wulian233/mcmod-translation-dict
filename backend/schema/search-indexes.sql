@@ -1,6 +1,7 @@
--- Bootstrap ONLY into an empty, local SQLite database containing `dict`.
+-- Bootstrap ONLY into an empty SQLite/D1 database containing `dict`.
 -- Do not run this full build against D1 Free: projection and FTS writes count
--- towards its 100,000-row daily write allowance.
+-- towards its 100,000-row daily write allowance. A remote bootstrap requires
+-- sufficient paid-plan capacity or a separately planned migration window.
 -- Existing tables intentionally cause an error instead of being destroyed.
 -- For updates, build locally and use tools/search_snapshot.py to prepare a delta.
 

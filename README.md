@@ -23,17 +23,15 @@
 - 智能搜索，搜索结果按输入匹配度和出现次数综合排序，支持按 modid 筛选搜索结果
 - 多种模式，支持英查中和中查英两种模式译文互查
 - 智能合并，智能识别同一模组的不同版本译文并统一展示
-- 自动分页，一页50条结果，支持上一页/下一页，不为总页数执行全量计数
+- 自动分页，一页50条结果，网页下方支持快速跳转首页/尾页
 - 记录键名，鼠标悬停在`所属模组`条目上方时会显示译文对应的键名
 - 及时更新的数据源
 - 页面美观，支持暗色模式，并且对手机上的显示效果进行了单独优化
 
 ## 技术细节
 
-词典原始数据超过七十万行。D1 Free 的限额是账户每天读取 500 万行、写入 10 万行，
-单库容量 500 MB；查询返回的行数并不等于读取行数，索引维护也消耗写入额度。
-额度在 UTC 00:00 重置，超额后读写请求会失败。
-详见 [D1 定价](https://developers.cloudflare.com/d1/platform/pricing/)。
+我们建议开发者搭建属于自己的 API。由于词典数据库过于庞大，超过七十万行，
+以及 Cloudflare Worker 的免费限制，一天能查询的数量有限，如果过多的用户查询很有可能不堪重负。
 
 本项目网站关于部署及注意事项均在下面列出，供有兴趣的开发者搭建自己的版本。
 
@@ -53,127 +51,91 @@ npm run dev
 
 在部署自己的项目时，请记得将 `frontend\config.js` 里的 `baseUrl` 替换为你部署的 API 地址。
 
-前端对未缓存的搜索统一限制为至少间隔 1000ms，模组输入在最后一次输入后防抖 1000ms。
-缓存结果可立即恢复；筛选因加载或节流被推迟时，只补发最新的筛选值。
+另外还在前端做了速率限制（可配置时间），每秒最多搜索一次。
 
 ### 后端
 
-所需环境：NodeJS 22+、Python 3.10+（SQLite 支持 FTS5/trigram）、Cloudflare Worker + D1。
+所需环境：Node.js 22+、Python 3.10+、Cloudflare Worker、D1，以及支持 FTS5/trigram 的 SQLite 3。
 
-Worker 只读 `dict_search`、`dict_search_fts` 和 `dict_search_trigram`。
-已有这三张搜索表的部署可直接更新代码，**不需要重建索引**。缺表时返回 503，
-不会回退到原始 `dict` 的高成本聚合查询。
+新版 Worker 只读取以下三张搜索表：
 
-发布时必须包含更新后的 `backend/wrangler.jsonc`，其中配置了 `SEARCH_RATE_LIMITER`：
-每个 Cloudflare 节点、每个来源 IP，每 60 秒最多 30 次**缓存未命中**的搜索。
-该原生绑定不使用 D1 保存计数；命中缓存仍可返回，即使限流已触发或限流服务不可用。
-缺少绑定或绑定异常时，未缓存请求会返回 503，而不是绕过保护继续查库。
-`namespace_id` 为字符串 `"2331001"`，部署多个 Worker 时应确保它在账户内不与无关限流器共用。
+| 表                    | 用途                                       | 是否手工编辑 |
+| :-------------------- | :----------------------------------------- | :----------- |
+| `dict_search`         | 聚合后的译文、原文、模组、版本、Key 等数据 | 否           |
+| `dict_search_fts`     | 英文分词与前缀搜索索引                     | 否           |
+| `dict_search_trigram` | 三个字及以上的中文子串索引                 | 否           |
 
-这是匿名站点的折中：NAT/代理下多个用户会共享 IP 限额；不同节点计数独立且最终一致，
-不能作为账户每日 D1 额度的精确账本。参见 [原生限流文档](https://developers.cloudflare.com/workers/runtime-apis/bindings/rate-limit/)。
+### 完整初始化或重建
 
-搜索最多展示 100 页（5000 条）；超出范围、负数、小数或非完整十进制的页码返回 400。
-第 100 页还有匹配项时，返回 `pageLimitReached: true`、`hasMore: false`，
-前端提示细化搜索词，不将截断误报成“已经没有其他匹配结果”。
+这一流程适用于首次部署，或旧 `dict_search` 缺列、规则已经不兼容的情况。
+建议创建一个新的 D1，验证完毕后再修改 `backend/wrangler.jsonc` 的 `database_id` 并部署，
+这样旧站点在准备期间仍可使用。完整初始化写入量很大，不适合直接在 D1 Free 上一次完成。
 
-每次实际成功执行 D1 查询，会在现有 Worker 日志中记录 `event: search`、
-`rows_read`、`rows_written`、`duration`、页码、模式和查询路径分类。
-计量直接取自 D1 `meta`，缺失时为 `null`；成功计量日志不包含搜索词、模组 ID 或 IP。
-`substring` 表示没有正向 FTS/trigram 条件缩小候选，应重点关注其读取量。
-缓存命中不产生这条 D1 查询日志；账户总使用量仍应看 D1 Metrics，不能由采样日志推断剩余额度。
+1. 下载 i18n Dict Extender 最新的 `Dict-Sqlite.db`，并从
+   [SQLite 官网](https://www.sqlite.org/download.html)安装 SQLite Tools。
 
-### 已有数据库：增量更新流程
-
-**不要再远程执行 `schema/search-indexes.sql`，不要先删除搜索表，也不要每次重新导入原始 `dict`。**
-全量创建投影曾产生约 143 万条写入，超过 Free 一天的额度。
-现在将聚合和差异计算放在本地，只提交变化的译文对。
-
-如果今天读写额度已经用尽，停止数据库操作，等待下一次 UTC 00:00 重置。
-以下远程命令只能在确认有额度后执行，工具本身不会连接 Cloudflare。
-
-1. 首次迁移到增量流程时，保存**实际部署投影的 rowid**。在 `backend` 目录执行：
+2. 将 SQLite 数据库转为 UTF-8 SQL：
 
    ```shell
-   npx wrangler d1 execute prod-d1-tutorial --remote --command "SELECT rowid AS rowid, * FROM dict_search ORDER BY rowid" --json
+   sqlite3 Dict-Sqlite.db ".output input.sql" ".dump"
    ```
 
-   将完整 JSON 输出保存为 UTF-8 的 `baseline.json`。PowerShell 可将输出管道到
-   `Out-File -Encoding utf8 baseline.json`；工具支持 UTF-8 BOM。
-   导出会消耗读取额度，只需建立一次可靠基线，不要每次更新都重新导出。
-   普通 `.dump` 不保证保留有空洞的隐式 rowid，不能替代这一步。
+   Windows PowerShell 不要使用 `> input.sql`；让 sqlite3 自己写文件可避免中文乱码。
+
+3. 使用 [SQL Cleaner Release](https://github.com/Wulian233/mcmod-translation-dict/releases/tag/sql_cleaner)
+   清理 `input.sql`。程序会生成 `Dict-Sqlite.sql`；源代码位于 [sql_cleaner](sql_cleaner/)。
+
+4. 创建新 D1，将下面的数据库名替换为新库名称，然后导入原始数据并构建搜索投影：
 
    ```shell
+   cd backend
+   npx wrangler d1 create new-dict-db
+   npx wrangler d1 execute new-dict-db --remote --file=../Dict-Sqlite.sql
+   npx wrangler d1 execute new-dict-db --remote --file=./schema/search-indexes.sql
+   ```
+
+   `search-indexes.sql` 只用于一个尚未包含搜索表的空目标；它故意不会覆盖已有搜索表。
+   任一步失败都不要切换 Worker。完成后按上一节第 4 步验证，再更新 `wrangler.jsonc` 并部署。
+
+### 以后维护：只上传增量
+
+新版 Worker 不读取原始 `dict`。日常更新在本地从新版 `Dict-Sqlite.db` 聚合数据，
+再比较线上 `dict_search`，只向 D1 写入新增、删除或元数据有变化的译文对。
+以下命令均在 `backend` 目录执行。
+
+1. 第一次使用增量工具时，导出线上投影的真实 rowid，并建立本地基线：
+
+   ```shell
+   npx wrangler d1 execute prod-d1-tutorial --remote --command "SELECT rowid AS rowid, * FROM dict_search ORDER BY rowid" --json | Out-File -Encoding utf8 baseline.json
    python tools/search_snapshot.py baseline-json --input baseline.json --output deployed.db
    ```
 
-2. 下载新的本地 `Dict-Sqlite.db`，生成增量：
+   只需建立一次基线。普通 `.dump` 不保证保留有空洞的隐式 rowid，不能代替这一步。
+
+2. 下载新的 `Dict-Sqlite.db`，在本地生成差异 SQL 和候选基线：
 
    ```shell
    python tools/search_snapshot.py diff --source Dict-Sqlite.db --baseline deployed.db --output delta.sql --candidate candidate.db
    ```
 
-   本地聚合复用 `schema/search-indexes.sql` 的规则。相同译文对保留 rowid；
-   只变化模组、版本、Key 等元数据时不改 FTS；新增、删除通过触发器原子维护两套 FTS。
-   每条命令在同一个 SQLite 语句内比较目标 rowid 的完整旧值，再修改内容和索引：
-   - 与预期旧值一致才执行；已经是完整目标值则幂等跳过。
-   - 删除目标已经不存在时跳过；更新目标不存在则报冲突。
-   - rowid 被占用成其他内容，或旧元数据已被修改时，报 `search snapshot baseline mismatch`，
-     该命令不修改任何内容或 FTS。检查与写入之间没有独立请求造成的竞态窗口。
+   工具完全在本地运行，不会连接 Cloudflare。默认估算写入超过 50,000 时会拒绝生成结果；
+   估算值不是 D1 的最终计费值，执行前仍应在 D1 Metrics 中检查账户余量。
 
-   未变化的数据不产生 SQL 写入。**旧版生成的 `delta.sql` 没有这层保护，必须用新版工具重新生成。**
-   保护覆盖本次修改的行，并不是整库快照锁；仍只允许一条更新流水线。
-
-   工具在本地模拟增量，计算包含 FTS 内部写入的 SQLite changes，加普通索引余量和
-   2 倍系数后估算预算，默认超过 50,000 就拒绝输出 SQL 和候选基线。
-   可用 `--max-estimated-writes` 调低预算；**估算不是 D1 实际计费保证**，
-   也不知道账户今天其他数据库已经消耗的额度。仍需检查实际 `rows_written` 和剩余额度。
-
-3. 确认剩余额度足够、没有其他进程更新投影后，执行增量：
+3. 确保只有这一条更新流水线在运行，然后上传增量：
 
    ```shell
    npx wrangler d1 execute prod-d1-tutorial --remote --file=delta.sql --json
    ```
 
-   文件先安装少量 FTS 维护触发器和一个空的比较更新视图，再提交逐行命令。
-   视图不保存命令数据；每个译文对的条件检查、内容及索引变更是单条 SQL 的原子操作。
-   `BATCH` 注释用于分段执行；`--batch-size` 只改变分段，不会重置每日额度，
-   也不保证整份文件全局原子。发生基线冲突应立即停止，核对实际状态后重新生成增量，
-   不能忽略失败后继续执行或提升候选基线。
-   每批检查 Wrangler 输出的实际 `rows_written` 和账户余量；余额不足则等待下一个配额窗口。
-   大更新应另行安排维护窗口/跨日迁移，不要为绕过拒绝而盲目调高预算。
+   若出现 `search snapshot baseline mismatch` 或额度错误，应立即停止并检查线上状态，
+   不要忽略失败继续执行，也不要提前使用候选基线。拆分批次不会重置每日额度。
 
-4. 所有语句成功并检查搜索结果后，再将 `candidate.db` 保存为下一次的 `deployed.db`。
-   中途失败时保留原基线和 SQL，不能提前使用候选基线。只允许一条更新流水线，
-   不能在两份基线之间交叉更新。响应仍缓存 7 天，数据更新后旧缓存可能暂时可见。
+4. 所有语句成功、线上搜索也验证通过后，用 `candidate.db` 替换本地的 `deployed.db`，
+   作为下一次更新基线。中途失败时继续保留原来的 `deployed.db`。
 
-工具不会把原始 `dict` 上传或同步回 D1。旧原表和旧索引暂时可以保留，
-不要在额度耗尽时清理；删除也可能消耗额度，清理应另行安排。
+增量工具只维护三张搜索表，不会更新线上旧 `dict`。这不是遗漏：新版 Worker 的运行数据源就是
+`dict_search`。如果仍希望保存最新原始库，建议把 `.db` 作为发布产物或对象存储归档，而不是每次写入 D1。
 
-### 本地构建与首次部署
-
-```shell
-python tools/search_snapshot.py build --source Dict-Sqlite.db --output local-search.db
-```
-
-这会在本地生成投影和索引，可用于检查行数、体积和搜索行为；
-**不能把它当作已有 D1 的 rowid 基线，也不能直接将 `.db` 上传到 D1。**
-`schema/search-indexes.sql` 仅用于含 `dict` 的本地空搜索库，
-已有搜索表会报错而不是被删除。
-
-首次部署仍需单独规划搜索结构创建和数据导入预算，本地预计算不免除远程导入写入。
-增量工具默认拒绝非空数据对空基线的初始化；`--allow-initial` 是显式迁移选项，
-仍受预算检查约束，不是 Free 全量导入的捷径。不要对 Free 库一次执行原始全量导入与建索引。
-
-### 验证
-
-在仓库根目录运行 `npm run check`，统一执行 JS 回归、Python 增量更新回归和 Vue 生产构建。
-单独的 `npm test` 不会编译 `.vue` 文件，不能替代完整检查。
-各项也可分别执行：`npm test`、`python -m unittest discover -s backend/test -p "test_*.py"`、`npm run build`。
-
-三字及以上的中文子串使用 trigram MATCH 加字面校验；一、二字搜索保留原有功能，
-但在没有其他正向条件缩小候选时仍扫描投影。分页上限限制了可请求的 OFFSET，
-并未消除广泛匹配的排序与扫描成本；`LIMIT 51`、七天缓存和按 IP 限流都不是每日额度保证。
 
 ## API 接口文档
 
@@ -186,7 +148,7 @@ python tools/search_snapshot.py build --source Dict-Sqlite.db --output local-sea
 - **方法**: GET
 - **缓存策略**: 浏览器及边缘节点缓存 7 天
 
-### 1. 搜索接口 `/search`
+### 搜索接口 `/search`
 
 执行关键词搜索，获取翻译结果及关联模组信息。
 
@@ -197,7 +159,7 @@ python tools/search_snapshot.py build --source Dict-Sqlite.db --output local-sea
 | 参数名 | 类型   | 必填 | 默认值  | 说明                                         |
 | :----- | :----- | :--- | :------ | :------------------------------------------- |
 | `q`    | String | 是   | -       | 搜索词（支持高级语法，详见下方）             |
-| `page` | Int    | 否   | `1`     | 页码，范围 1–100；非法或越界返回 400         |
+| `page` | Int    | 否   | `1`     | 当前页码                                     |
 | `mode` | String | 否   | `en2zh` | 搜索模式：`en2zh` (英查中), `zh2en` (中查英) |
 | `mod`  | String | 否   | -       | 只返回包含指定 modid 的译文对                |
 
@@ -232,36 +194,27 @@ python tools/search_snapshot.py build --source Dict-Sqlite.db --output local-sea
 
 | 字段名                    | 说明                                                                              |
 | :------------------------ | :-------------------------------------------------------------------------------- |
-| `total`                   | 已确认的最小匹配数；空的非首页为 `null`，不能由 OFFSET 推断总数                   |
-| `hasMore`                 | 是否允许请求下一页；到达展示上限时为 `false`                                      |
-| `pageLimitReached`        | 第 100 页仍有额外匹配项时为 `true`，需要缩小搜索范围                              |
-| `totalIsExact`            | `total` 是否精确；空的非首页为 `false`                                            |
+| `total`                   | 当前已确认的最小匹配数；不再为分页执行高成本的全量 `COUNT(*)`                     |
+| `hasMore`                 | 是否还有下一页                                                                    |
+| `totalIsExact`            | `total` 是否为精确值（到达最后一页时为 `true`）                                   |
 | `results`                 | 结果数组                                                                          |
 | `results.trans_name`      | 译文名称                                                                          |
 | `results.origin_name`     | 原文名称                                                                          |
 | `results.all_mods`        | 出现该翻译的模组及版本列表，多个模组用 `, ` 分隔                                  |
 | `results.all_keys`        | 对应模组的语言文件 Key。若单个模组有多个 Key，内部用 `\|` 分隔，模组间用 `,` 分隔 |
 | `results.all_curseforges` | 对应模组的 CurseForge 项目 ID                                                     |
-| `results.frequency`       | 该译文对的全局不同模组数；筛选后仍保持全局值，与排序含义一致                      |
+| `results.frequency`       | 该翻译对在不同模组配置中出现的频次                                                |
 
 ---
 
-### 2. 错误码说明
+### 错误码说明
 
-| 状态码 | 说明                                   | 错误信息示例                                                      |
-| :----- | :------------------------------------- | :---------------------------------------------------------------- |
-| `400`  | 参数错误                               | `{"error":"查询参数不能为空"}`                                    |
-| `400`  | 参数错误                               | `{"error": "搜索词长度不能超过50个字符"}`                         |
-| `404`  | 路径错误                               | `Not Found`                                                       |
-| `429`  | 未缓存搜索过于频繁                     | `Retry-After: 60`，失败响应不缓存                                 |
-| `500`  | 数据库异常                             | `{"error": "数据库查询失败，请稍后重试。"}`                       |
-| `503`  | 索引/限流/缓存服务不可用或每日额度用尽 | 响应包含可展示的 `error`；已知索引/每日额度错误附带 `Retry-After` |
-
-### 3. 开发注意事项
-
-1. **跨域支持 (CORS)**: 允许所有来源访问；CORS 不是鉴权或资源消耗防护。
-2. **速率限制**: 服务端原生限流保护缓存未命中的数据库查询；前端节流只减少无意的重复请求。
-3. **数据清洗**: 本地聚合会处理重复的 Key；服务端不再逐请求聚合原始数据。
+| 状态码 | 说明       | 错误信息示例                                    |
+| :----- | :--------- | :---------------------------------------------- |
+| `400`  | 参数错误   | `{"error":"查询参数不能为空"}`                  |
+| `400`  | 参数错误   | `{"error": "搜索词长度不能超过50个字符"}`       |
+| `404`  | 路径错误   | `Not Found`                                     |
+| `500`  | 数据库异常 | `{"error": "数据库查询失败", "details": "..."}` |
 
 ## 版权归属
 
