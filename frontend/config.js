@@ -6,6 +6,9 @@ export const SEARCH_CONFIG = {
 }
 
 export const API_CONFIG = {
-  baseUrl: 'https://api.vmct-cn.top',
+  baseUrl: (import.meta.env?.VITE_API_BASE_URL?.trim() || 'https://api.vmct-cn.top').replace(
+    /\/+$/,
+    '',
+  ),
   mcmodSearchUrl: 'https://search.mcmod.cn/s?key=',
 }

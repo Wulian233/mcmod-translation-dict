@@ -49,7 +49,17 @@ npm run dev
 
 本项目将其托管在了 Vercel 上并连接了 Github 仓库，仓库推送更新自动同步项目页面。
 
-在部署自己的项目时，请记得将 `frontend\config.js` 里的 `baseUrl` 替换为你部署的 API 地址。
+API 地址通过环境变量 `VITE_API_BASE_URL` 配置。本地开发时，在仓库根目录的
+`.env.local` 中设置 API 地址（不要附加 `/search`，该文件不提交到 Git）：
+
+```dotenv
+VITE_API_BASE_URL=https://api.vmct-cn.top
+```
+
+未设置或留空时使用默认地址 `https://api.vmct-cn.top`，地址末尾的 `/` 会自动去除。
+在 Vercel 项目的环境变量中设置同名变量即可覆盖默认地址。
+该值会在构建时写入前端；修改后需要重新部署，本地开发则需要重启开发服务器。
+参见 [Vite 环境变量说明](https://vite.dev/guide/env-and-mode)。
 
 另外还在前端做了速率限制（可配置时间），每秒最多搜索一次。
 

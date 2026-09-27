@@ -8,8 +8,8 @@
     "upgrade-deps": "taze patch -I"
   },
   "devDependencies": {
-    "pnpm": "^12.4.2",
+    "pnpm": "^12.6.0",
     "taze": "^21.1.0",
-    "wrangler": "^4.134.0"
+    "wrangler": "^4.141.0"
   }
 }

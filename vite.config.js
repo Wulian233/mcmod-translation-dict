@@ -1,9 +1,11 @@
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
+import { fileURLToPath } from 'node:url'
 
 export default defineConfig({
   plugins: [vue()],
   root: 'frontend',
+  envDir: fileURLToPath(new URL('.', import.meta.url)),
   publicDir: 'public',
   base: './',
 

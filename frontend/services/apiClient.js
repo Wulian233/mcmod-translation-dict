@@ -1,4 +1,5 @@
 import { API_BASE_URL } from '../store.js'
+import { extractModIds } from '../utils.js'
 
 export async function requestSearch({ query, page, mode, modFilter, signal }) {
   const params = new URLSearchParams({ q: query, page: String(page), mode })
@@ -30,6 +31,20 @@ export async function requestSearch({ query, page, mode, modFilter, signal }) {
     const requestError = new Error(message)
     requestError.status = response.status
     throw requestError
+  }
+
+  if (modFilter) {
+    const expectedMod = modFilter.trim().toLowerCase()
+    const confirmedMod = typeof data?.mod === 'string' ? data.mod.trim().toLowerCase() : ''
+    const validResults =
+      Array.isArray(data?.results) &&
+      data.results.every((result) => {
+        const mods = extractModIds(result.all_mods)
+        return mods.length > 0 && mods.every((mod) => mod.toLowerCase() === expectedMod)
+      })
+    if (confirmedMod !== expectedMod || !validResults) {
+      throw new Error('服务器未正确应用模组筛选，请等待后端更新后重试。')
+    }
   }
 
   return data

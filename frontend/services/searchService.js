@@ -173,7 +173,7 @@ export async function search(resetPage = false, requestedPage) {
       totalIsExact: data?.totalIsExact === true,
       hasMoreResults: hasMore,
       pageLimitReached,
-      appliedModFilter: data?.mod ?? context.modFilter,
+      appliedModFilter: data?.mod ?? '',
       resultsUiMessage: pageResults.length === 0 ? '未找到结果' : '',
       lastFullSearchKey: searchKey,
     })
@@ -190,6 +190,7 @@ export async function search(resetPage = false, requestedPage) {
     console.error('查询失败:', error)
     updateState({
       resultsUiMessage: error?.message || '查询失败，请检查网络或联系作者（Github Issue）。',
+      appliedModFilter: '',
       totalApiMatches: resetPage ? null : store.totalApiMatches,
       totalIsExact: false,
       hasMoreResults: resetPage ? false : store.hasMoreResults,
