@@ -6,6 +6,7 @@ export const SEARCH_CONFIG = {
 }
 
 export const API_CONFIG = {
-  baseUrl: 'https://api.vmct-cn.top',
+  // The dictionary API is served by the new ECS site on the same domain.
+  baseUrl: '/api/dict',
   mcmodSearchUrl: 'https://search.mcmod.cn/s?key=',
 }

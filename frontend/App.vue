@@ -78,6 +78,18 @@ onMounted(() => {
         >。
       </p>
       <p>
+        <a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener noreferrer"
+          >豫ICP备2024105509号-4</a
+        >
+        ·
+        <a
+          href="https://www.beian.gov.cn/portal/registerSystemInfo?recordcode=41019702001135"
+          target="_blank"
+          rel="noopener noreferrer"
+          >豫公网安备41019702001135号</a
+        >
+      </p>
+      <p>
         最后更新于：{{ buildTime }} | 📜
         <a href="#" id="changelogLink" data-bs-toggle="modal" data-bs-target="#changelogModal"
           >更新日志</a

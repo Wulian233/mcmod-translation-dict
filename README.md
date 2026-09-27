@@ -49,7 +49,7 @@ npm run dev
 
 本项目将其托管在了 Vercel 上并连接了 Github 仓库，仓库推送更新自动同步项目页面。
 
-在部署自己的项目时，请记得将 `frontend\config.js` 里的 `baseUrl` 替换为你部署的 API 地址。
+在部署自己的项目时，请记得将 `frontend\config.js` 里的 `baseUrl` 配置为站点同域的新词典 API（`/api/dict`）。
 
 另外还在前端做了速率限制（可配置时间），每秒最多搜索一次。
 
@@ -143,7 +143,7 @@ npm run dev
 
 ### 基础信息
 
-- **Base URL**: `https://api.vmct-cn.top` (请替换为你实际部署的地址)
+- **Base URL**: `https://dict.vmct.top/api/dict`
 - **协议**: HTTPS
 - **方法**: GET
 - **缓存策略**: 浏览器及边缘节点缓存 7 天
@@ -152,7 +152,7 @@ npm run dev
 
 执行关键词搜索，获取翻译结果及关联模组信息。
 
-**完整请求示例：**`https://api.vmct-cn.top/search?q=${query}&page=${currentPage}&mode=${mode}`
+**完整请求示例：**`https://dict.vmct.top/api/dict/search?q=${query}&page=${currentPage}&mode=${mode}`
 
 #### 请求参数
 
