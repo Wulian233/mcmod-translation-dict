@@ -1,12 +1,12 @@
 # ECS deployment
 
-The Nginx container reads its vhost files from `/home/vmct/nginx/conf.d`, but the dictionary frontend stays on the host. Add this read-only bind mount to the `nginx` service in `/home/vmct/nginx/compose.yaml`:
+The existing Nginx compose setup already mounts `/home/vmct/vmpm/dist` into the container. Keep the dictionary frontend under that existing host directory so Docker restarts preserve it:
 
 ```yaml
       - /home/vmct/dict.vmct.top-dist:/home/vmct/dict.vmct.top-dist:ro
 ```
 
-Upload the built `dist/` contents to `/home/vmct/dict.vmct.top-dist`, install `nginx-dict.vmct.top.conf` into `/home/vmct/nginx/conf.d/`, then validate and reload Nginx:
+Upload the built `dist/` contents to `/home/vmct/vmpm/dist/dict.vmct.top`, install `nginx-dict.vmct.top.conf` into `/home/vmct/nginx/conf.d/`, then validate and reload Nginx:
 
 ```sh
 sudo docker compose -f /home/vmct/nginx/compose.yaml up -d
