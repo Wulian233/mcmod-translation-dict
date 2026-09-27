@@ -64,7 +64,7 @@ export function escapeRegex(s) {
 }
 
 export function highlightQuery(text, rawQuery) {
-  if (!text || !rawQuery) return text || ''
+  if (!text || !rawQuery) return escapeHtml(text || '')
 
   const tokens = parseQuery(rawQuery)
   const safeText = escapeHtml(text)

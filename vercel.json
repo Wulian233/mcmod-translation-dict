@@ -1,0 +1,8 @@
+{
+  "framework": "vite",
+  "buildCommand": "pnpm build",
+  "outputDirectory": "dist",
+  "functions": {
+    "api/mcmod.js": { "maxDuration": 25, "regions": ["hkg1"] }
+  }
+}

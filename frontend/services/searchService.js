@@ -20,6 +20,7 @@ function getSearchContext(store, resetPage, requestedPage) {
   return {
     query: store.searchQuery.trim(),
     mode: store.searchMode,
+    source: store.dataSource,
     modFilter: store.modFilterValue.trim(),
     page: resetPage ? 1 : (requestedPage ?? store.currentPage),
   }
@@ -31,21 +32,26 @@ function validateSearchQuery(query) {
   return null
 }
 
-function buildSearchKey({ query, mode, page, modFilter }) {
-  return JSON.stringify([query, mode, page, modFilter])
+function buildSearchKey({ query, mode, page, modFilter, source }) {
+  return JSON.stringify([query, mode, page, modFilter, source])
 }
 
-function buildPageKey({ query, mode, page, modFilter }) {
-  return JSON.stringify([query, mode, page, modFilter])
+function buildPageKey(context) {
+  return buildSearchKey(context)
 }
 
-function setPageCache(key, value) {
+function setPageCache(key, value, source) {
   if (pageCache.has(key)) pageCache.delete(key)
-  pageCache.set(key, value)
+  pageCache.set(key, { data: value, expires: source === 'mcmod' ? Date.now() + 300000 : Infinity })
 
   if (pageCache.size > PAGE_CACHE_SIZE) {
     pageCache.delete(pageCache.keys().next().value)
   }
+}
+
+function hasCachedPage(key) {
+  if (pageCache.get(key)?.expires <= Date.now()) pageCache.delete(key)
+  return pageCache.has(key)
 }
 
 function invalidateCache(context) {
@@ -54,13 +60,24 @@ function invalidateCache(context) {
 
 async function getPageData(context, signal) {
   const cacheKey = buildPageKey(context)
-  if (pageCache.has(cacheKey)) {
-    return { data: pageCache.get(cacheKey), cached: true }
+  if (hasCachedPage(cacheKey)) {
+    return { data: pageCache.get(cacheKey).data, cached: true }
   }
 
   const data = await requestSearch({ ...context, signal })
-  setPageCache(cacheKey, data)
+  setPageCache(cacheKey, data, context.source)
   return { data, cached: false }
+}
+
+function canFallback(context, error, signal) {
+  return (
+    context.source === 'extended' &&
+    context.mode === 'en2zh' &&
+    !signal.aborted &&
+    (error?.status === 429 ||
+      error?.status >= 500 ||
+      ['TypeError', 'SyntaxError', 'TimeoutError'].includes(error?.name))
+  )
 }
 
 function abortActiveSearch() {
@@ -72,14 +89,15 @@ function abortActiveSearch() {
 function resetModFilterForNewSearch(context) {
   let lastQuery = ''
   let lastMode = ''
+  let lastSource = ''
 
   try {
-    ;[lastQuery, lastMode] = JSON.parse(useStore().lastFullSearchKey || '[]')
+    ;[lastQuery, lastMode, , , lastSource] = JSON.parse(useStore().lastFullSearchKey || '[]')
   } catch {
     // An invalid old cache key should behave like a new search.
   }
 
-  if (lastQuery !== context.query || lastMode !== context.mode) {
+  if (lastQuery !== context.query || lastMode !== context.mode || lastSource !== context.source) {
     context.modFilter = ''
     return true
   }
@@ -123,7 +141,7 @@ export async function search(resetPage = false, requestedPage) {
 
   const searchKey = buildSearchKey(context)
   const cacheKey = buildPageKey(context)
-  const isCached = pageCache.has(cacheKey)
+  const isCached = hasCachedPage(cacheKey)
   const now = Date.now()
 
   if (!resetPage && searchKey === store.lastFullSearchKey) {
@@ -142,6 +160,7 @@ export async function search(resetPage = false, requestedPage) {
     ...(newSearch ? { modFilterValue: '', appliedModFilter: '', availableMods: [] } : {}),
     ...(isCached ? {} : { lastSearchTime: now }),
     searchLoading: true,
+    sourceNotice: '',
     resultsUiMessage: '正在搜索中...',
     searchInfoMessage: '',
     lastSearchQuery: context.query,
@@ -151,9 +170,22 @@ export async function search(resetPage = false, requestedPage) {
   })
 
   const requestStartTime = performance.now()
+  let fallbackAttempted = false
 
   try {
-    const { data, cached } = await getPageData(context, signal)
+    let response
+    try {
+      response = await getPageData(context, signal)
+    } catch (error) {
+      if (!canFallback(context, error, signal)) throw error
+      fallbackAttempted = true
+      // Different sources have different rankings and result limits: restart at page 1.
+      context.source = 'mcmod'
+      context.page = 1
+      updateState({ searchInfoMessage: '加强版请求失败，正在尝试MC百科…' })
+      response = await getPageData(context, signal)
+    }
+    const { data, cached } = response
     const pageResults = data?.results ?? []
     const pageLimitReached = data?.pageLimitReached === true
     const hasMore = pageLimitReached
@@ -166,7 +198,9 @@ export async function search(resetPage = false, requestedPage) {
       : `搜索耗时: ${(performance.now() - requestStartTime).toFixed(0)} 毫秒`
 
     updateState({
-      searchInfoMessage: timing,
+      searchInfoMessage: fallbackAttempted ? `加强版请求失败，已自动切换MC百科。${timing}` : timing,
+      dataSource: context.source,
+      sourceNotice: data?.sourceNotice || '',
       currentPage: context.page,
       currentApiResults: pageResults,
       totalApiMatches: typeof data?.total === 'number' ? data.total : null,
@@ -175,12 +209,13 @@ export async function search(resetPage = false, requestedPage) {
       pageLimitReached,
       appliedModFilter: data?.mod ?? '',
       resultsUiMessage: pageResults.length === 0 ? '未找到结果' : '',
-      lastFullSearchKey: searchKey,
+      lastFullSearchKey: buildSearchKey(context),
     })
 
     // Suggestions come from the current unfiltered page. Filtered responses
     // intentionally keep the server-provided metadata and global frequency.
     if (!context.modFilter) setupModFilter(pageResults, updateState)
+    else if (fallbackAttempted) updateState({ availableMods: [] })
 
     return searchResult('accepted', { cached })
   } catch (error) {
@@ -189,7 +224,9 @@ export async function search(resetPage = false, requestedPage) {
     invalidateCache(context)
     console.error('查询失败:', error)
     updateState({
-      resultsUiMessage: error?.message || '查询失败，请检查网络或联系作者（Github Issue）。',
+      resultsUiMessage:
+        (fallbackAttempted ? '加强版请求失败，MC百科重试也失败：' : '') +
+        (error?.message || '查询失败，请检查网络或联系作者（Github Issue）。'),
       appliedModFilter: '',
       totalApiMatches: resetPage ? null : store.totalApiMatches,
       totalIsExact: false,
