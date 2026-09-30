@@ -105,11 +105,12 @@ VITE_API_BASE_URL=https://api.vmct-cn.top
    ```
 
    `search-indexes.sql` 只用于一个尚未包含搜索表的空目标；它故意不会覆盖已有搜索表。
-   任一步失败都不要切换 Worker。完成后按上一节第 4 步验证，再更新 `wrangler.jsonc` 并部署。
+   任一步失败都不要切换 Worker。完成后确认三张搜索表可查询，再更新 `wrangler.jsonc` 并部署。
+   新库切换成功后，可以删除新库中仅用于初始化的 `dict` 表；运行中的 Worker 不使用它。
 
 ### 以后维护：只上传增量
 
-新版 Worker 不读取原始 `dict`。日常更新在本地从新版 `Dict-Sqlite.db` 聚合数据，
+Worker 不读取原始 `dict`，线上库仅保留搜索投影及索引。日常更新在本地从新版 `Dict-Sqlite.db` 聚合数据，
 再比较线上 `dict_search`，只向 D1 写入新增、删除或元数据有变化的译文对。
 以下命令均在 `backend` 目录执行。
 
@@ -143,8 +144,8 @@ VITE_API_BASE_URL=https://api.vmct-cn.top
 4. 所有语句成功、线上搜索也验证通过后，用 `candidate.db` 替换本地的 `deployed.db`，
    作为下一次更新基线。中途失败时继续保留原来的 `deployed.db`。
 
-增量工具只维护三张搜索表，不会更新线上旧 `dict`。这不是遗漏：新版 Worker 的运行数据源就是
-`dict_search`。如果仍希望保存最新原始库，建议把 `.db` 作为发布产物或对象存储归档，而不是每次写入 D1。
+增量工具只维护三张搜索表；Worker 的运行数据源是 `dict_search`。
+如果需要保留原始数据，请将本地 `.db` 单独归档，无需写入线上 D1。
 
 ## API 接口文档
 
@@ -173,47 +174,6 @@ VITE_API_BASE_URL=https://api.vmct-cn.top
 自动尝试百科一次，从第一页开始，保留搜索词与模组筛选，成功后更新数据源提示。
 中查英、空结果、参数错误、取消请求不触发切换；两边失败显示错误。
 百科转发独立于 D1 Worker，加强版 API 故障时仍可尝试百科。
-
-#### 接口实测（2026-09-27）
-
-来源：[首页](https://dict.mcmod.cn/)脚本及[PHP 搜索接口](https://dict.mcmod.cn/connection/search.php)响应。
-请求为表单 POST：`key=bee&max=100&range=1`。HTML 包含统计段落和四列表格，
-`<code>` 是高亮，`<tr title>` 为整行 Key，模组之间以 `<br>` 分隔。
-
-- 线上加强版接口即使带 `source=mcmod` 仍返回加强版 JSON、无 `source` 标记；
-  原先“未支持百科”提示由此产生，不能把这些结果标记为百科。
-- `range=2/3` 未观察到生效：中文“石头”“铁锭”无结果，`range=2` 的 `stone` 仍查英文。
-- `stone` 统计5,270个匹配，但只返回100行；`max=2` 实测也返回100行，未发现可用分页参数。
-- 首页标注更新于2025-07-27，数据提供者 CFPA，许可 CC BY-NC-SA 4.0。
-
-#### 浏览器转换规则
-
-`frontend/services/mcmodParser.js` 用 parse5 解析，去除脚本、样式、图标和高亮标签，
-解码实体后按文本安全显示；只提取有效的 CurseForge 项目标识。同 modid 的版本去重合并，
-`frequency` 重算为不同 modid 数。Key 无法可靠归属到各模组且可能已被上游截断，
-因此 `all_keys` 留空，`source_keys` 保存去重后的整行 Key，单独展开显示。
-
-浏览器缓存最多20次关键词查询，每份5分钟；翻页和模组筛选使用完整的最多100行快照，
-每页50条，不重新请求。`upstreamTotal` 仅保留上游统计，不作为可分页总数；
-有截断时 `totalIsExact=false`，页面提示细化关键词。
-
-转发地址固定，限制搜索词50字符、响应2 MiB；成功响应可缓存5分钟。
-单次上游请求（含读取正文）限时8秒，连接失败、超时、空响应或上游502/503/504时，
-间隔250毫秒最多重试一次；403、429、非HTML及过大响应不重试。
-Vercel函数配置在香港 `hkg1` 执行，最大时长25秒；百科前端请求超时22秒，
-保证两次尝试有时间完成。加强版请求仍为15秒。
-原始 HTML 以 `text/plain` 返回，并设置 nosniff 与 CSP，禁止当成本站 HTML 执行。
-不转发上游 Cookie，不缓存失败响应。浏览器遇到空正文或未知结构会报错，不伪装成无结果。
-
-失败响应为JSON：`error`（说明）、`code`（如 `UPSTREAM_NETWORK`、`UPSTREAM_TIMEOUT`）、
-`requestId`。超时返回504，其他上游故障返回502；前端显示说明及请求编号。
-Vercel Runtime Logs 搜索 `mcmod_upstream_failure` 或请求编号，可看到尝试次数、耗时、
-上游状态、底层网络错误码和执行区域，日志不记录查询词。响应头
-`X-Mcmod-Request-Id`、`X-Mcmod-Attempts` 可用于核对。
-
-验证：`node --test frontend/services/*.test.js tests/*.test.js`、`pnpm build`。
-
-本项目后端基于 Cloudflare Worker 和 D1 数据库构建，支持高级全文搜索（FTS5）和结果聚合。
 
 ### 基础信息
 
