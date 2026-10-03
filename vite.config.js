@@ -1,8 +1,19 @@
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
+import mcmodRelay from './deploy/mcmod-dev-relay.js'
+
+function localMcmodRelay() {
+  const register = (server) => {
+    server.middlewares.use((req, res, next) => {
+      if (new URL(req.url, 'http://localhost').pathname !== '/api/mcmod') return next()
+      mcmodRelay(req, res).catch(next)
+    })
+  }
+  return { name: 'mcmod-relay', configureServer: register, configurePreviewServer: register }
+}
 
 export default defineConfig({
-  plugins: [vue()],
+  plugins: [vue(), localMcmodRelay()],
   root: 'frontend',
   publicDir: 'public',
   base: './',

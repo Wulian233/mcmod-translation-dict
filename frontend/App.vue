@@ -35,7 +35,7 @@ onMounted(() => {
 
     <SearchBar />
 
-    <div class="mb-2 text-muted">
+    <div v-if="store.dataSource === 'extended'" class="mb-2 text-muted">
       <strong>进阶搜索语法：</strong><br />
       <ul style="margin-bottom: 0; padding-left: 1.2em">
         <li>使用 <code>-</code> 排除特定单词，例如：<code>Save -as</code>（排除包含 as 的结果）</li>
@@ -51,7 +51,12 @@ onMounted(() => {
       </ul>
     </div>
 
+    <p v-else class="text-muted small">
+      MC百科仅支持英文查中文，最多取100条后分页和筛选
+    </p>
+
     <ModFilter />
+    <p v-if="store.sourceNotice" class="small text-muted" role="status">{{ store.sourceNotice }}</p>
 
     <div id="searchInfo" class="mb-3">{{ store.searchInfoMessage }}</div>
 
@@ -68,7 +73,7 @@ onMounted(() => {
         上提出建议和点亮星标⭐！
       </p>
       <p>
-        词典翻译数据基于VM汉化组的
+        加强版词典翻译数据基于VM汉化组的
         <a href="https://github.com/VM-Chinese-translate-group/i18n-Dict-Extender"
           >i18n Dict Extender</a
         >

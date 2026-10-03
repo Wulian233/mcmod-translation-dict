@@ -26,22 +26,21 @@ function handlePageChange(page) {
         <th>翻译结果</th>
         <th>原文</th>
         <th>所属模组</th>
-        <th>全局不同模组数</th>
       </tr>
     </thead>
     <tbody id="resultsBody">
       <tr v-if="resultsMessage || currentResults.length === 0">
-        <td colspan="4">{{ resultsMessage }}</td>
+        <td colspan="3">{{ resultsMessage }}</td>
       </tr>
 
       <tr v-if="store.pageLimitReached">
-        <td colspan="4" class="small text-warning">
+        <td colspan="3" class="small text-warning">
           结果已达到最多 100 页的展示上限，请细化搜索词后重试。
         </td>
       </tr>
 
       <tr v-if="!resultsMessage && store.appliedModFilter && currentResults.length > 0">
-        <td colspan="4" class="small">已筛选模组: {{ store.appliedModFilter }}</td>
+        <td colspan="3" class="small">已筛选模组: {{ store.appliedModFilter }}</td>
       </tr>
 
       <tr v-for="item in currentResults" :key="getResultKey(item)">
@@ -63,8 +62,11 @@ function handlePageChange(page) {
         ></td>
         <td style="max-width: 140px">
           <ModLinks :item="item" />
+          <details v-if="item.source_keys?.length" class="small mt-1">
+            <summary>原始 Key（整行汇总）</summary>
+            <div v-for="key in item.source_keys" :key="key">{{ key }}</div>
+          </details>
         </td>
-        <td>{{ item.frequency || 0 }}</td>
       </tr>
     </tbody>
   </table>

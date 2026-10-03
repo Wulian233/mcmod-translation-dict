@@ -1,7 +1,37 @@
 import { API_BASE_URL } from '../store.js'
 
-export async function requestSearch({ query, page, mode, modFilter, signal }) {
+export async function requestSearch(options) {
+  const controller = new AbortController()
+  const abort = () => controller.abort()
+  let timedOut = false
+  const timer = setTimeout(() => {
+    timedOut = true
+    controller.abort()
+  }, options.source === 'mcmod' ? 22000 : 15000)
+  options.signal?.addEventListener('abort', abort, { once: true })
+  if (options.signal?.aborted) abort()
+  try {
+    return await performSearch({ ...options, signal: controller.signal })
+  } catch (error) {
+    if (timedOut && !options.signal?.aborted) {
+      const timeout = new Error('请求超时，请稍后重试')
+      timeout.name = 'TimeoutError'
+      throw timeout
+    }
+    throw error
+  } finally {
+    clearTimeout(timer)
+    options.signal?.removeEventListener('abort', abort)
+  }
+}
+
+async function performSearch({ query, page, mode, modFilter, source = 'extended', signal }) {
+  if (source === 'mcmod') {
+    const { requestMcmod } = await import('./mcmodClient.js')
+    return requestMcmod({ query, page, mode, modFilter, signal })
+  }
   const params = new URLSearchParams({ q: query, page: String(page), mode })
+  params.set('source', source)
   if (modFilter) params.set('mod', modFilter)
   // v5 includes page-cap metadata and the current global-frequency contract.
   params.set('v', '0')
@@ -20,7 +50,9 @@ export async function requestSearch({ query, page, mode, modFilter, signal }) {
           // Fall back to the HTTP status when the error body is not readable.
         }
       }
-      throw new Error(text || `请求失败: ${response.status}`)
+      const requestError = new Error(text || `请求失败: ${response.status}`)
+      requestError.status = response.status
+      throw requestError
     }
     throw error
   }
