@@ -5,6 +5,7 @@ import SearchBar from './components/SearchBar.vue'
 import ModFilter from './components/ModFilter.vue'
 import ResultsTable from './components/ResultsTable.vue'
 import ChangelogModal from './components/ChangelogModal.vue'
+import MigrationNoticeModal from './components/MigrationNoticeModal.vue'
 import * as bootstrap from 'bootstrap'
 
 const buildTime = __BUILD_TIME__
@@ -21,6 +22,11 @@ const resultsMessage = computed(() => {
 })
 
 onMounted(() => {
+  const deadline = window.__MIGRATION_DEADLINE__
+  if (deadline) {
+    window.setTimeout(() => window.location.replace(window.__NEW_SITE_URL__), deadline - Date.now())
+  }
+
   if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
     updateState({
       changelogModal: new bootstrap.Modal(document.getElementById('changelogModal')),
@@ -93,6 +99,7 @@ onMounted(() => {
   </div>
 
   <ChangelogModal />
+  <MigrationNoticeModal />
 </template>
 
 <style lang="css">
