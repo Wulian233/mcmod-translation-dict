@@ -8,6 +8,12 @@ function handleSearch() {
   search(true) // 始终重置页面
 }
 
+function handleSearchOnEnter(event) {
+  if (event.isComposing) return
+  event.preventDefault()
+  handleSearch()
+}
+
 function resetSearch(selection) {
   updateState({
     ...selection,
@@ -49,7 +55,7 @@ function changeMode(event) {
       placeholder="请输入搜索词..."
       :value="store.searchQuery"
       @input="(e) => updateState({ searchQuery: e.target.value })"
-      @keypress.enter="handleSearch"
+      @keydown.enter="handleSearchOnEnter"
     />
     <select
       v-if="store.dataSource === 'extended'"
